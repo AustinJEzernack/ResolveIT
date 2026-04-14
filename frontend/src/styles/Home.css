@@ -6,7 +6,7 @@
 
 /* Navbar */
 .navbar {
-  background-color: var(--surface-color);
+  background-color: #F3F4F6;
   border-bottom: 1px solid var(--border-color);
   padding: 1rem 0;
   position: sticky;
@@ -27,6 +27,14 @@
   font-size: 1.5rem;
   font-weight: bold;
   color: var(--primary-color);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  transition: var(--transition);
+}
+
+.logo:hover {
+  color: #0056CC;
 }
 
 .nav-links {
@@ -64,7 +72,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #5865f2 0%, #36393f 100%);
+  background: linear-gradient(135deg, #007AFF 0%, #0056CC 100%);
   padding: 4rem 2rem;
   text-align: center;
 }
@@ -72,12 +80,12 @@
 .hero-content h2 {
   font-size: 3rem;
   margin-bottom: 1rem;
-  color: var(--text-color);
+  color: #FFFFFF;
 }
 
 .hero-content p {
   font-size: 1.25rem;
-  color: var(--text-secondary);
+  color: #E0E8FF;
   margin-bottom: 2rem;
 }
 

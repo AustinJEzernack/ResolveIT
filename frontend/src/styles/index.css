@@ -1,11 +1,11 @@
 :root {
-  --primary-color: #5865f2;
-  --secondary-color: #57f287;
-  --background-color: #36393f;
-  --surface-color: #2f3136;
-  --text-color: #ffffff;
-  --text-secondary: #b5bac1;
-  --border-color: #202225;
+  --primary-color: #007AFF;
+  --secondary-color: #00C853;
+  --background-color: #EDEDF0;
+  --surface-color: #F3F4F6;
+  --text-color: #1A202C;
+  --text-secondary: #666666;
+  --border-color: #E5E7EB;
   --border-radius: 4px;
   --transition: all 0.3s ease;
 }

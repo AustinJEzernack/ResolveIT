@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import apiClient from '@services/api'
+import { useNavigate, Link } from 'react-router-dom'
+import mockAuth from '@services/mockAuth'
 import '../styles/Login.css'
 
 const Login: React.FC = () => {
@@ -16,14 +16,11 @@ const Login: React.FC = () => {
     setLoading(true)
 
     try {
-      const response = await apiClient.post('/accounts/login/', {
-        email,
-        password,
-      })
+      const response = await mockAuth.login(email, password)
 
       // Store tokens
-      localStorage.setItem('access_token', response.data.access)
-      localStorage.setItem('refresh_token', response.data.refresh)
+      localStorage.setItem('access_token', response.access)
+      localStorage.setItem('refresh_token', response.refresh)
 
       // Redirect to dashboard
       navigate('/dashboard')
@@ -75,7 +72,7 @@ const Login: React.FC = () => {
         </form>
 
         <div className="login-footer">
-          <p>Don't have an account? <a href="/register">Sign up</a></p>
+          <p>Don't have an account? <Link to="/register">Sign up</Link></p>
           <p><a href="/forgot-password">Forgot password?</a></p>
         </div>
       </div>

@@ -7,11 +7,12 @@ const Home: React.FC = () => {
     <div className="home-container">
       <header className="navbar">
         <div className="navbar-content">
-          <h1 className="logo">ResolveIT</h1>
+          <Link to="/" className="logo">ResolveIT</Link>
           <nav className="nav-links">
-            <a href="#tickets">Tickets</a>
-            <a href="#workshops">Workshops</a>
-            <a href="#messages">Messages</a>
+            <Link to="/about">About</Link>
+            <a href="#features">Features</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#contact">Contact</a>
             <Link to="/login" className="login-btn">Login</Link>
           </nav>
         </div>
