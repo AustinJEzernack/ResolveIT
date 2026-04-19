@@ -2,12 +2,15 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import mockAuth from '@services/mockAuth'
 import notificationService, { Notification } from '@services/notificationService'
+import CreateWorkshopModal from '@components/CreateWorkshopModal'
 import '../styles/Dashboard.css'
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate()
   const user = mockAuth.getCurrentUser()
   const [notifications, setNotifications] = useState<Notification[]>(notificationService.getNotifications())
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isSidebarHidden, setIsSidebarHidden] = useState(false)
 
   const handleLogout = () => {
     mockAuth.logout()
@@ -24,15 +27,28 @@ const Dashboard: React.FC = () => {
     setNotifications([...notifications])
   }
 
+  const handleWorkshopCreated = () => {
+    notificationService.addNotification({
+      message: 'Workshop created successfully!',
+      type: 'success',
+      duration: 5000,
+    })
+    setNotifications([...notificationService.getNotifications()])
+  }
+
   const unreadCount = notifications.filter(n => !n.read).length
 
   return (
     <div className="dashboard-container">
       <nav className="dashboard-navbar">
         <div className="navbar-content">
-          <h1 className="navbar-logo">ResolveIT</h1>
+          <h1 className="navbar-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>ResolveIT</h1>
           <div className="navbar-user">
             <span className="user-name">{user?.first_name} {user?.last_name}</span>
+            <button className="navbar-btn" onClick={() => setIsCreateModalOpen(true)}>
+              Create Workshop
+            </button>
+            <button className="navbar-btn navbar-btn-secondary">View Workshops</button>
             <button onClick={handleLogout} className="logout-btn">Logout</button>
           </div>
         </div>
@@ -40,14 +56,23 @@ const Dashboard: React.FC = () => {
 
       <div className="dashboard-wrapper">
         {/* Activity Log Sidebar */}
-        <aside className="activity-sidebar">
+        <aside className={`activity-sidebar ${isSidebarHidden ? 'hidden' : ''}`}>
           <div className="sidebar-header">
             <h2>Activity Log</h2>
-            {unreadCount > 0 && (
-              <button onClick={handleMarkAllAsRead} className="mark-all-btn">
-                Mark all as read
+            <div className="sidebar-actions">
+              {unreadCount > 0 && (
+                <button onClick={handleMarkAllAsRead} className="mark-all-btn">
+                  Mark all as read
+                </button>
+              )}
+              <button 
+                className="toggle-sidebar-btn"
+                onClick={() => setIsSidebarHidden(!isSidebarHidden)}
+                title={isSidebarHidden ? "Show Activity Bar" : "Hide Activity Bar"}
+              >
+                {isSidebarHidden ? '→' : '←'}
               </button>
-            )}
+            </div>
           </div>
 
           <div className="notifications-list">
@@ -81,6 +106,17 @@ const Dashboard: React.FC = () => {
           </div>
         </aside>
 
+        {/* Floating sidebar toggle when hidden */}
+        {isSidebarHidden && (
+          <button
+            className="floating-toggle-btn"
+            onClick={() => setIsSidebarHidden(false)}
+            title="Show Activity Bar"
+          >
+            →
+          </button>
+        )}
+
         {/* Main Content */}
         <main className="dashboard-main">
           <div className="welcome-section">
@@ -104,13 +140,6 @@ const Dashboard: React.FC = () => {
             </div>
 
             <div className="dashboard-card">
-              <div className="card-icon">👥</div>
-              <h3>Workshops</h3>
-              <p>Manage your workshops</p>
-              <button className="card-btn">View Workshops</button>
-            </div>
-
-            <div className="dashboard-card">
               <div className="card-icon">⚙️</div>
               <h3>Settings</h3>
               <p>Manage your account settings</p>
@@ -128,6 +157,12 @@ const Dashboard: React.FC = () => {
           </section>
         </main>
       </div>
+
+      <CreateWorkshopModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={handleWorkshopCreated}
+      />
     </div>
   )
 }

@@ -35,7 +35,7 @@ const Login: React.FC = () => {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h1 className="logo">ResolveIT</h1>
+          <h1 className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>ResolveIT</h1>
           <p className="subtitle">Welcome back</p>
         </div>
 
