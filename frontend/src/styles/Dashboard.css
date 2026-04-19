@@ -562,6 +562,36 @@
   flex: 1;
 }
 
+.workshop-name {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin: 0 0 0.5rem 0;
+}
+
+.workshop-description {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.workshop-meta {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-left: 2rem;
+}
+
+.member-count {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.workshop-item {
+  cursor: pointer;
+}
+
 /* Tickets Section */
 .tickets-section {
   background-color: #F3F4F6;

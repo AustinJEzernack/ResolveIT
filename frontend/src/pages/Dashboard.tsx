@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import mockAuth from '@services/mockAuth'
 import notificationService, { Notification } from '@services/notificationService'
 import CreateWorkshopModal from '@components/CreateWorkshopModal'
+import WorkshopItem from '@components/WorkshopItem'
 import '../styles/Dashboard.css'
 
 const Dashboard: React.FC = () => {
@@ -12,6 +13,10 @@ const Dashboard: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isSidebarHidden, setIsSidebarHidden] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [workshops, setWorkshops] = useState([
+    { id: '1', name: 'React Development', description: 'Learn React fundamentals', memberCount: 12 },
+    { id: '2', name: 'Web Design', description: 'Create beautiful websites', memberCount: 8 },
+  ])
 
   const handleLogout = () => {
     mockAuth.logout()
@@ -46,6 +51,7 @@ const Dashboard: React.FC = () => {
           <h1 className="navbar-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>ResolveIT</h1>
           <div className="navbar-user">
             <span className="user-name">{user?.first_name} {user?.last_name}</span>
+            <button onClick={handleLogout} className="logout-btn">Logout</button>
             <div className="dropdown-container">
               <button 
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -62,7 +68,6 @@ const Dashboard: React.FC = () => {
                 </div>
               )}
             </div>
-            <button onClick={handleLogout} className="logout-btn">Logout</button>
           </div>
         </div>
       </nav>
@@ -148,9 +153,21 @@ const Dashboard: React.FC = () => {
               </button>
             </div>
             <div className="workshops-container">
-              <div className="empty-state">
-                <p>No workshops yet</p>
-              </div>
+              {workshops.length === 0 ? (
+                <div className="empty-state">
+                  <p>No workshops yet</p>
+                </div>
+              ) : (
+                workshops.map((workshop) => (
+                  <WorkshopItem
+                    key={workshop.id}
+                    id={workshop.id}
+                    name={workshop.name}
+                    description={workshop.description}
+                    memberCount={workshop.memberCount}
+                  />
+                ))
+              )}
             </div>
           </section>
 

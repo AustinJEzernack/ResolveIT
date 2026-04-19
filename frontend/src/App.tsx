@@ -4,6 +4,7 @@ import Login from '@pages/Login'
 import SignUp from '@pages/SignUp'
 import About from '@pages/About'
 import Dashboard from '@pages/Dashboard'
+import Workshop from '@pages/Workshop'
 import ProtectedRoute from '@components/ProtectedRoute'
 import './App.css'
 
@@ -19,6 +20,14 @@ function App() {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/workshop/:workshopId"
+        element={
+          <ProtectedRoute>
+            <Workshop />
           </ProtectedRoute>
         }
       />
