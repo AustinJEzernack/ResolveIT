@@ -11,6 +11,7 @@ const Dashboard: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>(notificationService.getNotifications())
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isSidebarHidden, setIsSidebarHidden] = useState(false)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
   const handleLogout = () => {
     mockAuth.logout()
@@ -45,10 +46,22 @@ const Dashboard: React.FC = () => {
           <h1 className="navbar-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>ResolveIT</h1>
           <div className="navbar-user">
             <span className="user-name">{user?.first_name} {user?.last_name}</span>
-            <button className="navbar-btn" onClick={() => setIsCreateModalOpen(true)}>
-              Create Workshop
-            </button>
-            <button className="navbar-btn navbar-btn-secondary">View Workshops</button>
+            <div className="dropdown-container">
+              <button 
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="dropdown-toggle"
+              >
+                ⋮
+              </button>
+              {isDropdownOpen && (
+                <div className="dropdown-menu">
+                  <button className="dropdown-item">👤 Profile</button>
+                  <button className="dropdown-item">🎫 Tickets</button>
+                  <button className="dropdown-item">💬 Messages</button>
+                  <button className="dropdown-item">⚙️ Settings</button>
+                </div>
+              )}
+            </div>
             <button onClick={handleLogout} className="logout-btn">Logout</button>
           </div>
         </div>
@@ -125,27 +138,30 @@ const Dashboard: React.FC = () => {
           </div>
 
           <div className="dashboard-grid">
-            <div className="dashboard-card">
-              <div className="card-icon">🎫</div>
-              <h3>Tickets</h3>
-              <p>Manage your support tickets</p>
-              <button className="card-btn">View Tickets</button>
-            </div>
-
-            <div className="dashboard-card">
-              <div className="card-icon">💬</div>
-              <h3>Messages</h3>
-              <p>Chat with your team members</p>
-              <button className="card-btn">Open Messages</button>
-            </div>
-
-            <div className="dashboard-card">
-              <div className="card-icon">⚙️</div>
-              <h3>Settings</h3>
-              <p>Manage your account settings</p>
-              <button className="card-btn">Go to Settings</button>
-            </div>
           </div>
+
+          <section className="workshop-section">
+            <div className="workshop-header">
+              <h2>Your Workshops</h2>
+              <button className="navbar-btn" onClick={() => setIsCreateModalOpen(true)}>
+                Create Workshop
+              </button>
+            </div>
+            <div className="workshops-container">
+              <div className="empty-state">
+                <p>No workshops yet</p>
+              </div>
+            </div>
+          </section>
+
+          <section className="tickets-section">
+            <h2>Your Tickets</h2>
+            <div className="tickets-container">
+              <div className="empty-state">
+                <p>No tickets yet</p>
+              </div>
+            </div>
+          </section>
 
           <section className="info-section">
             <h2>Quick Info</h2>
