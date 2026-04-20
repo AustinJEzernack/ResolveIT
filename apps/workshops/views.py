@@ -1,6 +1,7 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.utils.text import slugify
 
 from apps.accounts.models import User
 from apps.accounts.serializers import PublicUserSerializer
@@ -13,6 +14,25 @@ from .serializers import UpdateWorkshopSerializer, WorkbenchSerializer, Workshop
 # ─────────────────────────────────────────────
 # Workshop views
 # ─────────────────────────────────────────────
+
+class WorkshopCreateView(generics.CreateAPIView):
+    """POST /api/workshops/create/ — create a new workshop and assign user as owner."""
+
+    serializer_class = WorkshopSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        # Generate slug from workshop name
+        workshop = serializer.save()
+        workshop.slug = slugify(workshop.name)
+        workshop.save(update_fields=["slug"])
+        
+        # Assign current user as owner of this workshop
+        user = self.request.user
+        user.workshop = workshop
+        user.role = User.Role.OWNER
+        user.save(update_fields=["workshop", "role"])
+
 
 class WorkshopDetailView(generics.RetrieveUpdateAPIView):
     """GET / PATCH /api/workshops/me/ — current user's workshop."""
