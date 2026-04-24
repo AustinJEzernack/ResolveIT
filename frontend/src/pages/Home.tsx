@@ -39,6 +39,7 @@ const Home: React.FC = () => {
             <div className="feature-icon"><Ticket size={16} strokeWidth={1.75} /></div>
             <h4>Ticket Management</h4>
             <p>Create, track, and resolve tickets efficiently with our intuitive system.</p>
+            <Link to="/tickets" className="feature-link-btn">Open Tickets</Link>
           </div>
           <div className="feature-card">
             <div className="feature-icon"><MessageSquare size={16} strokeWidth={1.75} /></div>

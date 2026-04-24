@@ -32,8 +32,16 @@ class TicketListCreateView(generics.ListCreateAPIView):
     ordering = ["-urgency", "-created_at"]
 
     def get_queryset(self):
+        user = self.request.user
+        if user.workshop_id is None:
+            return (
+                Ticket.objects.filter(assignee=user)
+                .select_related("requestor", "assignee", "workbench")
+                .prefetch_related("tags")
+            )
+
         return (
-            Ticket.objects.filter(workshop=self.request.user.workshop)
+            Ticket.objects.filter(workshop=user.workshop)
             .select_related("requestor", "assignee", "workbench")
             .prefetch_related("tags")
         )
@@ -81,8 +89,16 @@ class TicketDetailView(generics.RetrieveUpdateDestroyAPIView):
     """GET / PATCH / DELETE /api/tickets/<uuid>/"""
 
     def get_queryset(self):
+        user = self.request.user
+        if user.workshop_id is None:
+            return (
+                Ticket.objects.filter(assignee=user)
+                .select_related("requestor", "assignee", "workbench")
+                .prefetch_related("tags", "work_logs")
+            )
+
         return (
-            Ticket.objects.filter(workshop=self.request.user.workshop)
+            Ticket.objects.filter(workshop=user.workshop)
             .select_related("requestor", "assignee", "workbench")
             .prefetch_related("tags", "work_logs")
         )
@@ -94,7 +110,7 @@ class TicketDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_permissions(self):
         if self.request.method == "DELETE":
-            return [IsOwner()]
+            return [permissions.IsAuthenticated()]
         return [permissions.IsAuthenticated()]
 
     def update(self, request, *args, **kwargs):
@@ -142,8 +158,20 @@ class TicketDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def destroy(self, request, *args, **kwargs):
         ticket = self.get_object()
+        user = request.user
+
+        if (
+            user.role != "OWNER"
+            and ticket.assignee_id != user.id
+            and ticket.requestor_id != user.id
+        ):
+            return Response(
+                {"status": "error", "message": "You do not have permission to complete this ticket"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         log_action(
-            user=request.user,
+            user=user,
             action=AuditLog.Action.DELETE,
             entity_type="ticket",
             entity_id=ticket.id,

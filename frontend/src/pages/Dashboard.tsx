@@ -113,7 +113,7 @@ const Dashboard: React.FC = () => {
               <div className="card-icon"><Ticket size={16} strokeWidth={1.75} /></div>
               <h3>Tickets</h3>
               <p>Manage your support tickets</p>
-              <button className="card-btn">View Tickets</button>
+              <button className="card-btn" onClick={() => navigate('/tickets')}>View Tickets</button>
             </div>
 
             <div className="dashboard-card">

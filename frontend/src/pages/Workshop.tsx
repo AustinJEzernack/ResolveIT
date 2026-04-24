@@ -70,10 +70,18 @@ const Workshop: React.FC = () => {
   const [sending, setSending] = useState(false)
   const [inviteLoading, setInviteLoading] = useState(false)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isCreateWorkbenchOpen, setIsCreateWorkbenchOpen] = useState(false)
   const [isInviteOpen, setIsInviteOpen] = useState(false)
   const [inviteError, setInviteError] = useState('')
   const [inviteSuccess, setInviteSuccess] = useState('')
   const [addingMemberId, setAddingMemberId] = useState<string | null>(null)
+  const [workbenchForm, setWorkbenchForm] = useState({
+    name: '',
+    description: '',
+    color: '#e03131',
+  })
+  const [creatingWorkbench, setCreatingWorkbench] = useState(false)
+  const [createWorkbenchError, setCreateWorkbenchError] = useState('')
 
   const wsRef = useRef<WebSocket | null>(null)
   const prevChannelRef = useRef<string | null>(null)
@@ -245,8 +253,39 @@ const Workshop: React.FC = () => {
     }
   }
 
+  const handleCreateWorkbench = async (event: React.FormEvent) => {
+    event.preventDefault()
+    const trimmedName = workbenchForm.name.trim()
+    if (!trimmedName || creatingWorkbench) return
+
+    setCreateWorkbenchError('')
+    setCreatingWorkbench(true)
+
+    try {
+      await apiClient.post('/workbenches/', {
+        name: trimmedName,
+        description: workbenchForm.description.trim(),
+        color: workbenchForm.color || '',
+      })
+
+      setWorkbenchForm({ name: '', description: '', color: '#e03131' })
+      setIsCreateWorkbenchOpen(false)
+      await loadWorkbenchState()
+    } catch (error: any) {
+      const message =
+        error.response?.data?.detail ||
+        error.response?.data?.name?.[0] ||
+        error.response?.data?.message ||
+        'Failed to create workbench'
+      setCreateWorkbenchError(message)
+    } finally {
+      setCreatingWorkbench(false)
+    }
+  }
+
   const activeWorkbench = workbenches.find((workbench) => workbench.id === activeWorkbenchId)
   const canCreateWorkshop = !workshop
+  const canCreateWorkbenches = Boolean(workshop && currentRole === 'OWNER')
   const canInviteMembers = Boolean(workshop && currentRole === 'OWNER')
   const filteredMembers = availableMembers.filter((member) => {
     const query = memberSearch.trim().toLowerCase()
@@ -269,6 +308,19 @@ const Workshop: React.FC = () => {
           </div>
 
           <div className="workshop-navbar-right">
+            {canCreateWorkbenches ? (
+              <button
+                className="workshop-action-btn"
+                onClick={() => {
+                  setCreateWorkbenchError('')
+                  setIsCreateWorkbenchOpen(true)
+                }}
+                title="Create a workbench"
+              >
+                <Plus size={14} strokeWidth={1.75} />
+                Create Workbench
+              </button>
+            ) : null}
             <button
               className="workshop-action-btn"
               onClick={handleOpenInviteModal}
@@ -390,6 +442,85 @@ const Workshop: React.FC = () => {
           void refreshWorkshopPage()
         }}
       />
+
+      {isCreateWorkbenchOpen ? (
+        <div className="modal-overlay" onClick={() => setIsCreateWorkbenchOpen(false)}>
+          <div className="modal-content workshop-create-workbench-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Create Workbench</h2>
+              <button
+                className="modal-close-btn"
+                onClick={() => setIsCreateWorkbenchOpen(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateWorkbench} className="workshop-form">
+              <div className="form-group">
+                <label htmlFor="workbench_name">Name</label>
+                <input
+                  id="workbench_name"
+                  name="workbench_name"
+                  type="text"
+                  value={workbenchForm.name}
+                  onChange={(event) => setWorkbenchForm((prev) => ({ ...prev, name: event.target.value }))}
+                  placeholder="General Support"
+                  required
+                  disabled={creatingWorkbench}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="workbench_description">Description</label>
+                <textarea
+                  id="workbench_description"
+                  name="workbench_description"
+                  value={workbenchForm.description}
+                  onChange={(event) => setWorkbenchForm((prev) => ({ ...prev, description: event.target.value }))}
+                  placeholder="Optional description"
+                  rows={3}
+                  disabled={creatingWorkbench}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="workbench_color">Color</label>
+                <input
+                  id="workbench_color"
+                  name="workbench_color"
+                  type="text"
+                  value={workbenchForm.color}
+                  onChange={(event) => setWorkbenchForm((prev) => ({ ...prev, color: event.target.value }))}
+                  placeholder="#e03131"
+                  disabled={creatingWorkbench}
+                />
+              </div>
+
+              {createWorkbenchError ? <div className="error-message">{createWorkbenchError}</div> : null}
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-cancel"
+                  onClick={() => setIsCreateWorkbenchOpen(false)}
+                  disabled={creatingWorkbench}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-submit"
+                  disabled={creatingWorkbench || !workbenchForm.name.trim()}
+                >
+                  {creatingWorkbench ? 'Creating...' : 'Create Workbench'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
 
       {isInviteOpen ? (
         <div className="modal-overlay" onClick={() => setIsInviteOpen(false)}>

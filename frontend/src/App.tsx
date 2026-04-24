@@ -4,6 +4,7 @@ import Login from '@pages/Login'
 import SignUp from '@pages/SignUp'
 import About from '@pages/About'
 import Dashboard from '@pages/Dashboard'
+import Tickets from '@pages/Tickets'
 import Workshop from '@pages/Workshop'
 import ProtectedRoute from '@components/ProtectedRoute'
 import './App.css'
@@ -15,6 +16,14 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<SignUp />} />
       <Route path="/about" element={<About />} />
+      <Route
+        path="/tickets"
+        element={
+          <ProtectedRoute>
+            <Tickets />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/dashboard"
         element={
