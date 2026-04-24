@@ -31,16 +31,20 @@ class PublicUserSerializer(serializers.ModelSerializer):
     """Safe user representation — no password or sensitive fields."""
 
     full_name = serializers.SerializerMethodField()
+    username = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
-            "id", "email", "first_name", "last_name",
+            "id", "email", "username", "first_name", "last_name",
             "full_name", "role", "avatar_url", "last_active_at",
         ]
 
     def get_full_name(self, obj):
         return obj.get_full_name()
+
+    def get_username(self, obj):
+        return obj.email.split("@", 1)[0]
 
 
 class RegisterWorkshopSerializer(serializers.Serializer):
@@ -103,6 +107,31 @@ class RegisterTechnicianSerializer(serializers.ModelSerializer):
             last_name=validated_data["last_name"],
             role=User.Role.TECHNICIAN,
             workshop=workshop,
+        )
+
+
+class RegisterStandaloneTechnicianSerializer(serializers.ModelSerializer):
+    """Public signup: create a Technician account without a workshop."""
+
+    password = serializers.CharField(min_length=8, write_only=True)
+
+    class Meta:
+        model = User
+        fields = ["email", "password", "first_name", "last_name"]
+
+    def validate_email(self, value):
+        if User.objects.filter(email=value.lower()).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value.lower()
+
+    def create(self, validated_data):
+        return User.objects.create_user(
+            email=validated_data["email"],
+            password=validated_data["password"],
+            first_name=validated_data["first_name"],
+            last_name=validated_data["last_name"],
+            role=User.Role.TECHNICIAN,
+            workshop=None,
         )
 
 

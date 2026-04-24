@@ -66,6 +66,62 @@ class WorkshopMembersView(generics.ListAPIView):
         ).order_by("first_name")
 
 
+class AvailableUsersView(generics.ListAPIView):
+    """GET /api/workshops/available-members/ — active non-owner users outside this workshop."""
+
+    serializer_class = PublicUserSerializer
+    permission_classes = [IsOwner]
+
+    def get_queryset(self):
+        return User.objects.filter(is_active=True).exclude(
+            id=self.request.user.id
+        ).exclude(
+            workshop=self.request.user.workshop
+        ).exclude(
+            role=User.Role.OWNER
+        ).order_by("first_name", "last_name", "email")
+
+
+class AddMemberView(APIView):
+    """POST /api/workshops/me/members/<user_id>/assign/ — add an existing user to the current workshop."""
+
+    permission_classes = [IsOwner]
+
+    def post(self, request, user_id):
+        try:
+            user = User.objects.get(id=user_id, is_active=True)
+        except User.DoesNotExist:
+            return Response(
+                {"status": "error", "message": "User not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if user.role == User.Role.OWNER:
+            return Response(
+                {"status": "error", "message": "Owners cannot be reassigned"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if user.workshop_id == request.user.workshop_id:
+            return Response(
+                {"status": "error", "message": "User is already in your workshop"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.workshop = request.user.workshop
+        user.role = User.Role.TECHNICIAN
+        user.save(update_fields=["workshop", "role"])
+
+        return Response(
+            {
+                "status": "success",
+                "message": "Member added to workshop",
+                "data": {"user": PublicUserSerializer(user).data},
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class DeactivateMemberView(APIView):
     """DELETE /api/workshops/me/members/<user_id>/ — owner deactivates a member."""
 

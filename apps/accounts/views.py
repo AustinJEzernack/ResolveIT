@@ -14,6 +14,7 @@ from .models import User
 from .serializers import (
     CustomTokenObtainPairSerializer,
     PublicUserSerializer,
+    RegisterStandaloneTechnicianSerializer,
     RegisterTechnicianSerializer,
     RegisterWorkshopSerializer,
     UpdateProfileSerializer,
@@ -92,6 +93,48 @@ class RegisterTechnicianView(generics.CreateAPIView):
 
         return Response(
             {"status": "success", "data": {"user": PublicUserSerializer(user).data}},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class RegisterStandaloneTechnicianView(APIView):
+    """
+    POST /api/auth/register-technician/
+    Public signup for technicians without a workshop.
+    Returns a JWT token pair.
+    """
+
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = RegisterStandaloneTechnicianSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        log_action(
+            user=user,
+            action=AuditLog.Action.CREATE,
+            entity_type="user",
+            entity_id=user.id,
+            workshop_id=None,
+            request=request,
+        )
+
+        refresh = RefreshToken.for_user(user)
+        refresh["role"] = user.role
+        refresh["workshop_id"] = None
+        refresh["email"] = user.email
+
+        return Response(
+            {
+                "status": "success",
+                "data": {
+                    "access_token": str(refresh.access_token),
+                    "refresh_token": str(refresh),
+                    "user": PublicUserSerializer(user).data,
+                    "workshop": None,
+                },
+            },
             status=status.HTTP_201_CREATED,
         )
 

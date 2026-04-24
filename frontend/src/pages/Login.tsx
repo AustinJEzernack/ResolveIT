@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import mockAuth from '@services/mockAuth'
+import apiClient from '@services/api'
 import '../styles/Login.css'
 
 const Login: React.FC = () => {
@@ -16,11 +16,11 @@ const Login: React.FC = () => {
     setLoading(true)
 
     try {
-      const response = await mockAuth.login(email, password)
+      const response = await apiClient.post('/auth/token/', { email, password })
 
       // Store tokens
-      localStorage.setItem('access_token', response.access)
-      localStorage.setItem('refresh_token', response.refresh)
+      localStorage.setItem('access_token', response.data.access)
+      localStorage.setItem('refresh_token', response.data.refresh)
 
       // Redirect to dashboard
       navigate('/dashboard')

@@ -58,6 +58,47 @@
   gap: 1.5rem;
 }
 
+.signup-role-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.signup-role-label {
+  color: var(--text-color);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.signup-role-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.signup-role-option {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--bg-card);
+  color: var(--text-color);
+  padding: 0.75rem 0.9rem;
+  cursor: pointer;
+  transition: var(--transition);
+  user-select: none;
+}
+
+.signup-role-option input {
+  margin: 0;
+}
+
+.signup-role-option.active {
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-red);
+}
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -150,6 +191,7 @@
     padding: 2rem;
   }
 
+  .signup-role-options,
   .form-row {
     grid-template-columns: 1fr;
   }

@@ -1,17 +1,36 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Check, Info, AlertTriangle, X, Ticket, MessageSquare, Users, Settings } from 'lucide-react'
-import mockAuth from '@services/mockAuth'
+import apiClient from '@services/api'
+import { clearAuthTokens, getAccessToken, getRefreshToken, type AuthUser } from '@services/auth'
 import notificationService, { Notification } from '@services/notificationService'
 import '../styles/Dashboard.css'
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate()
-  const user = mockAuth.getCurrentUser()
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>(notificationService.getNotifications())
 
+  useEffect(() => {
+    if (!getAccessToken()) {
+      navigate('/login')
+      return
+    }
+
+    apiClient.get('/auth/me/')
+      .then((response) => setUser(response.data as AuthUser))
+      .catch(() => {
+        clearAuthTokens()
+        navigate('/login')
+      })
+  }, [navigate])
+
   const handleLogout = () => {
-    mockAuth.logout()
+    const refreshToken = getRefreshToken()
+    if (refreshToken) {
+      apiClient.post('/auth/logout/', { refresh_token: refreshToken }).catch(() => {})
+    }
+    clearAuthTokens()
     navigate('/login')
   }
 

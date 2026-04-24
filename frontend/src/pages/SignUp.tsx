@@ -1,10 +1,21 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import mockAuth from '@services/mockAuth'
+import apiClient from '@services/api'
 import '../styles/SignUp.css'
 
+function slugifyWorkshopName(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+}
+
 const SignUp: React.FC = () => {
+  const [accountType, setAccountType] = useState<'manager' | 'technician'>('manager')
   const [formData, setFormData] = useState({
+    workshop_name: '',
     email: '',
     first_name: '',
     last_name: '',
@@ -27,7 +38,12 @@ const SignUp: React.FC = () => {
     e.preventDefault()
     setError('')
 
-    // Validation happens in mockAuth, but we can add client-side too
+    const workshopSlug = slugifyWorkshopName(formData.workshop_name)
+    if (accountType === 'manager' && !workshopSlug) {
+      setError('Workshop name is required for managers')
+      return
+    }
+
     if (formData.password !== formData.password_confirm) {
       setError('Passwords do not match')
       return
@@ -41,22 +57,39 @@ const SignUp: React.FC = () => {
     setLoading(true)
 
     try {
-      const response = await mockAuth.register(
-        formData.email,
-        formData.first_name,
-        formData.last_name,
-        formData.password,
-        formData.password_confirm
-      )
+      const response = accountType === 'manager'
+        ? await apiClient.post('/auth/register/', {
+            workshop_name: formData.workshop_name,
+            workshop_slug: workshopSlug,
+            email: formData.email,
+            password: formData.password,
+            first_name: formData.first_name,
+            last_name: formData.last_name,
+          })
+        : await apiClient.post('/auth/register-technician/', {
+            email: formData.email,
+            password: formData.password,
+            first_name: formData.first_name,
+            last_name: formData.last_name,
+          })
+
+      const payload = response.data?.data
 
       // Store tokens
-      localStorage.setItem('access_token', response.access)
-      localStorage.setItem('refresh_token', response.refresh)
+      localStorage.setItem('access_token', payload?.access_token ?? '')
+      localStorage.setItem('refresh_token', payload?.refresh_token ?? '')
 
       // Redirect to dashboard
       navigate('/dashboard')
     } catch (err: any) {
-      setError(err.response?.data?.detail || err.response?.data?.email?.[0] || 'Registration failed. Please try again.')
+      const data = err.response?.data
+      setError(
+        data?.detail ||
+        data?.workshop_slug?.[0] ||
+        data?.workshop_name?.[0] ||
+        data?.email?.[0] ||
+        'Registration failed. Please try again.'
+      )
     } finally {
       setLoading(false)
     }
@@ -73,6 +106,47 @@ const SignUp: React.FC = () => {
         {error && <div className="error-message">{error}</div>}
 
         <form onSubmit={handleSubmit} className="signup-form">
+          <div className="signup-role-group" role="radiogroup" aria-label="Account Type">
+            <span className="signup-role-label">I am signing up as</span>
+            <div className="signup-role-options">
+              <label className={`signup-role-option ${accountType === 'manager' ? 'active' : ''}`}>
+                <input
+                  type="radio"
+                  name="account_type"
+                  value="manager"
+                  checked={accountType === 'manager'}
+                  onChange={() => setAccountType('manager')}
+                />
+                Manager
+              </label>
+              <label className={`signup-role-option ${accountType === 'technician' ? 'active' : ''}`}>
+                <input
+                  type="radio"
+                  name="account_type"
+                  value="technician"
+                  checked={accountType === 'technician'}
+                  onChange={() => setAccountType('technician')}
+                />
+                Technician
+              </label>
+            </div>
+          </div>
+
+          {accountType === 'manager' ? (
+            <div className="form-group">
+              <label htmlFor="workshop_name">Workshop Name</label>
+              <input
+                id="workshop_name"
+                name="workshop_name"
+                type="text"
+                value={formData.workshop_name}
+                onChange={handleChange}
+                placeholder="Acme IT"
+                required={accountType === 'manager'}
+              />
+            </div>
+          ) : null}
+
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="first_name">First Name</label>
