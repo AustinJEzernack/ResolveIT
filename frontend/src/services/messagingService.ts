@@ -46,9 +46,16 @@ export interface ChatMessage {
 export interface TicketItem {
   id: string
   title: string
+  description: string
   status: string
   urgency: string
   category: string
+  asset_id: string
+  resolution: string
+  created_at: string
+  updated_at: string
+  requestor: ChatUser
+  assignee: ChatUser | null
 }
 
 function unwrapListPayload<T>(payload: any): T[] {
@@ -83,6 +90,15 @@ export async function fetchMessages(channelId: string): Promise<ChatMessage[]> {
 export async function postMessage(channelId: string, content: string): Promise<ChatMessage> {
   const res = await apiClient.post(`/messaging/channels/${channelId}/messages/`, { content })
   return res.data.data?.message
+}
+
+export async function createChannel(name: string, memberIds: string[]): Promise<Channel> {
+  const res = await apiClient.post('/messaging/channels/', {
+    name,
+    type: 'PUBLIC',
+    member_ids: memberIds,
+  })
+  return res.data.data?.channel
 }
 
 export function connectWebSocket(

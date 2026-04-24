@@ -6,6 +6,7 @@ from django.utils.text import slugify
 from apps.accounts.models import User
 from apps.accounts.serializers import PublicUserSerializer
 from apps.core.permissions import IsOwner
+from apps.messaging.models import Channel, ChannelMember
 
 from .models import Workbench, Workshop
 from .serializers import UpdateWorkshopSerializer, WorkbenchSerializer, WorkshopSerializer
@@ -112,6 +113,13 @@ class AddMemberView(APIView):
         user.role = User.Role.TECHNICIAN
         user.save(update_fields=["workshop", "role"])
 
+        # Add the new member to all existing workbench channels in this workshop
+        channels = Channel.objects.filter(workshop=request.user.workshop)
+        ChannelMember.objects.bulk_create(
+            [ChannelMember(channel=channel, user=user, is_admin=False) for channel in channels],
+            ignore_conflicts=True,
+        )
+
         return Response(
             {
                 "status": "success",
@@ -170,7 +178,28 @@ class WorkbenchListCreateView(generics.ListCreateAPIView):
         return [permissions.IsAuthenticated()]
 
     def perform_create(self, serializer):
-        serializer.save(workshop=self.request.user.workshop)
+        workbench = serializer.save(workshop=self.request.user.workshop)
+
+        # Auto-create a matching PUBLIC channel so workbench chat works immediately
+        workshop = self.request.user.workshop
+        channel = Channel.objects.create(
+            name=workbench.name,
+            type=Channel.Type.PUBLIC,
+            is_encrypted=False,
+            workshop=workshop,
+        )
+        members = User.objects.filter(workshop=workshop, is_active=True)
+        ChannelMember.objects.bulk_create(
+            [
+                ChannelMember(
+                    channel=channel,
+                    user=member,
+                    is_admin=(member.id == self.request.user.id),
+                )
+                for member in members
+            ],
+            ignore_conflicts=True,
+        )
 
 
 class WorkbenchDetailView(generics.RetrieveUpdateDestroyAPIView):

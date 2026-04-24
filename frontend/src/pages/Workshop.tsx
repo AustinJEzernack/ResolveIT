@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Plus, Send, Ticket, UserPlus } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronUp, Plus, Send, Ticket, UserPlus } from 'lucide-react'
 import CreateWorkshopModal from '../components/CreateWorkshopModal'
 import apiClient from '@services/api'
 import {
   connectWebSocket,
+  createChannel,
   fetchChannels,
   fetchMessages,
   fetchTickets,
@@ -60,10 +61,13 @@ const Workshop: React.FC = () => {
   const [workbenches, setWorkbenches] = useState<Workbench[]>([])
   const [channels, setChannels] = useState<Channel[]>([])
   const [tickets, setTickets] = useState<TicketItem[]>([])
+  const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [availableMembers, setAvailableMembers] = useState<WorkshopMember[]>([])
   const [activeWorkbenchId, setActiveWorkbenchId] = useState<string | null>(null)
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string>('')
+  const [creatingChannel, setCreatingChannel] = useState(false)
   const [input, setInput] = useState('')
   const [memberSearch, setMemberSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -85,6 +89,8 @@ const Workshop: React.FC = () => {
 
   const wsRef = useRef<WebSocket | null>(null)
   const prevChannelRef = useRef<string | null>(null)
+  const activeChannelIdRef = useRef<string | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
   const loadWorkbenchState = async () => {
     try {
@@ -120,9 +126,12 @@ const Workshop: React.FC = () => {
     }
 
     if (meResult.status === 'fulfilled') {
-      setCurrentRole(meResult.value.data?.role ?? '')
+      const me = meResult.value.data
+      setCurrentRole(me?.role ?? '')
+      setCurrentUserId(me?.id ?? '')
     } else {
       setCurrentRole('')
+      setCurrentUserId('')
     }
   }
 
@@ -140,7 +149,12 @@ const Workshop: React.FC = () => {
 
     const ws = connectWebSocket(token, (event) => {
       if (event.type === 'message.new') {
-        setMessages((prev) => [...prev, event.data as ChatMessage])
+        const newMsg = event.data as ChatMessage
+        if (newMsg.channel_id === activeChannelIdRef.current) {
+          setMessages((prev) =>
+            prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]
+          )
+        }
       }
     })
     wsRef.current = ws
@@ -153,17 +167,58 @@ const Workshop: React.FC = () => {
   useEffect(() => {
     if (!activeWorkbenchId) {
       setTickets([])
+      setExpandedTicketId(null)
       setActiveChannelId(null)
       return
     }
 
-    fetchTickets(activeWorkbenchId).then(setTickets).catch(() => setTickets([]))
+    fetchTickets(activeWorkbenchId).then(setTickets).catch(() => {
+      setTickets([])
+      setExpandedTicketId(null)
+    })
 
     const workbench = workbenches.find((item) => item.id === activeWorkbenchId)
     const match = channels.find((channel) => channel.name === workbench?.name)
-    setActiveChannelId(match?.id ?? null)
-    if (!match) setMessages([])
-  }, [activeWorkbenchId, workbenches, channels])
+
+    if (match) {
+      setActiveChannelId(match.id)
+    } else if (workbench && !creatingChannel) {
+      // Auto-create a channel for this workbench (owner: via API; others wait for owner to create it)
+      setCreatingChannel(true)
+      const fetchAndCreate = async () => {
+        try {
+          const res = await apiClient.get('/workshops/me/members/')
+          const allMembers: WorkshopMember[] = unwrapListPayload<WorkshopMember>(res.data)
+          const otherMemberIds = allMembers
+            .filter((m) => m.id !== currentUserId)
+            .map((m) => m.id)
+          const newChannel = await createChannel(workbench.name, otherMemberIds)
+          if (newChannel) {
+            const updatedChannels = await fetchChannels()
+            setChannels(updatedChannels)
+            setActiveChannelId(newChannel.id)
+          }
+        } catch {
+          setActiveChannelId(null)
+          setMessages([])
+        } finally {
+          setCreatingChannel(false)
+        }
+      }
+      void fetchAndCreate()
+    } else if (!workbench) {
+      setActiveChannelId(null)
+      setMessages([])
+    }
+  }, [activeWorkbenchId, workbenches, channels]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    activeChannelIdRef.current = activeChannelId
+  }, [activeChannelId])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   useEffect(() => {
     if (!activeChannelId) {
@@ -381,15 +436,44 @@ const Workshop: React.FC = () => {
                     No tickets in this workbench.
                   </p>
                 ) : (
-                  tickets.map((ticket) => (
-                    <div key={ticket.id} className="ticket-row">
-                      <span className="ticket-id">{String(ticket.id).slice(0, 8)}</span>
-                      <span className="ticket-title">{ticket.title}</span>
-                      <span className={`ticket-status ${ticket.status.toLowerCase()}`}>
-                        {ticket.status.replace('_', ' ').toLowerCase()}
-                      </span>
-                    </div>
-                  ))
+                  tickets.map((ticket) => {
+                    const expanded = expandedTicketId === ticket.id
+                    const assigneeLabel = ticket.assignee?.full_name || ticket.assignee?.email || 'Unassigned'
+
+                    return (
+                      <div key={ticket.id} className={`ticket-card-inline ${expanded ? 'expanded' : ''}`}>
+                        <button
+                          type="button"
+                          className="ticket-row"
+                          onClick={() => setExpandedTicketId(expanded ? null : ticket.id)}
+                        >
+                          <span className="ticket-id">{String(ticket.id).slice(0, 8)}</span>
+                          <span className="ticket-title">{ticket.title}</span>
+                          <span className="ticket-assignee">{assigneeLabel}</span>
+                          <span className={`ticket-status ${ticket.status.toLowerCase().replace('_', '-')}`}>
+                            {ticket.status.replace('_', ' ').toLowerCase()}
+                          </span>
+                          <span className="ticket-expand-icon">
+                            {expanded ? <ChevronUp size={15} strokeWidth={1.75} /> : <ChevronDown size={15} strokeWidth={1.75} />}
+                          </span>
+                        </button>
+
+                        {expanded ? (
+                          <div className="ticket-inline-details">
+                            <p><strong>Description:</strong> {ticket.description || '—'}</p>
+                            <p><strong>Category:</strong> {ticket.category || '—'}</p>
+                            <p><strong>Urgency:</strong> {ticket.urgency}</p>
+                            <p><strong>Asset ID:</strong> {ticket.asset_id || '—'}</p>
+                            <p><strong>Requestor:</strong> {ticket.requestor?.full_name || ticket.requestor?.email || '—'}</p>
+                            <p><strong>Assignee:</strong> {ticket.assignee?.full_name || ticket.assignee?.email || '—'}</p>
+                            <p><strong>Resolution:</strong> {ticket.resolution || '—'}</p>
+                            <p><strong>Created:</strong> {new Date(ticket.created_at).toLocaleString()}</p>
+                            <p><strong>Updated:</strong> {new Date(ticket.updated_at).toLocaleString()}</p>
+                          </div>
+                        ) : null}
+                      </div>
+                    )
+                  })
                 )}
               </div>
 
@@ -403,7 +487,12 @@ const Workshop: React.FC = () => {
                           <div key={message.id} className="chat-message">
                             <div className="chat-avatar">{initials || '?'}</div>
                             <div className="chat-bubble">
-                              <div className="chat-sender">{message.sender.full_name}</div>
+                              <div className="chat-sender">
+                                {message.sender.full_name}
+                                <span className="chat-timestamp">
+                                  {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
                               <div className="chat-text">{message.content}</div>
                             </div>
                           </div>
@@ -423,10 +512,11 @@ const Workshop: React.FC = () => {
                         <Send size={14} strokeWidth={1.75} />
                       </button>
                     </div>
+                    <div ref={messagesEndRef} />
                   </>
                 ) : (
                   <div style={{ padding: '16px', color: 'var(--fg-muted)', fontSize: '0.85rem' }}>
-                    No channel linked to this workbench.
+                    {creatingChannel ? 'Setting up channel…' : 'No channel linked to this workbench.'}
                   </div>
                 )}
               </div>

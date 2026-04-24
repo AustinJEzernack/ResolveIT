@@ -36,7 +36,7 @@ class ChannelSerializer(serializers.ModelSerializer):
 class CreateChannelSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=100, required=False, allow_blank=True)
     type = serializers.ChoiceField(choices=Channel.Type.choices)
-    member_ids = serializers.ListField(child=serializers.UUIDField(), min_length=1)
+    member_ids = serializers.ListField(child=serializers.UUIDField(), min_length=0, default=list)
     is_encrypted = serializers.BooleanField(default=False)
 
     def validate(self, attrs):
