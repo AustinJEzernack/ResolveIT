@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, ChevronDown, ChevronUp, Plus, Send, Ticket, UserPlus } from 'lucide-react'
 import CreateWorkshopModal from '../components/CreateWorkshopModal'
 import apiClient from '@services/api'
@@ -355,6 +355,9 @@ const Workshop: React.FC = () => {
       <div className="workshop-page">
         <nav className="workshop-navbar">
           <div className="workshop-navbar-left">
+            <Link to="/" className="logo-link" style={{ marginRight: '16px' }}>
+              ResolveIT
+            </Link>
             <button className="workshop-back-btn" onClick={() => navigate('/dashboard')}>
               <ArrowLeft size={14} strokeWidth={1.75} />
               Dashboard
@@ -394,7 +397,7 @@ const Workshop: React.FC = () => {
               <Plus size={14} strokeWidth={1.75} />
               Create Workshop
             </button>
-            <img src="/resolveIT_logo_final.svg" alt="ResolveIT" height={24} />
+            <span className="logo-link">ResolveIT</span>
           </div>
         </nav>
 

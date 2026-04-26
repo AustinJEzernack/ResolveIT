@@ -25,16 +25,16 @@
 
 .logo-link {
   font-size: 2rem;
-  color: var(--primary-color);
+  color: #e03131;
   margin-bottom: 0.5rem;
   text-decoration: none;
   font-weight: bold;
   display: block;
-  transition: var(--transition);
+  transition: opacity 0.2s ease;
 }
 
 .logo-link:hover {
-  color: var(--accent-hover);
+  opacity: 0.8;
 }
 
 .subtitle {

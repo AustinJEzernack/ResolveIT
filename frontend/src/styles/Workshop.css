@@ -23,6 +23,20 @@
   gap: 1.5rem;
 }
 
+.logo-link {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #e03131;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  transition: opacity 0.2s ease;
+}
+
+.logo-link:hover {
+  opacity: 0.8;
+}
+
 .workshop-navbar-right {
   display: flex;
   align-items: center;

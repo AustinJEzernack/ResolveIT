@@ -37,36 +37,38 @@ class RegisterWorkshopView(APIView):
         serializer.is_valid(raise_exception=True)
         owner, workshop = serializer.save()
 
-        log_action(
-            user=owner,
-            action=AuditLog.Action.CREATE,
-            entity_type="workshop",
-            entity_id=workshop.id,
-            workshop_id=workshop.id,
-            request=request,
-        )
+        if workshop:
+            log_action(
+                user=owner,
+                action=AuditLog.Action.CREATE,
+                entity_type="workshop",
+                entity_id=workshop.id,
+                workshop_id=workshop.id,
+                request=request,
+            )
 
         refresh = RefreshToken.for_user(owner)
         refresh["role"] = owner.role
-        refresh["workshop_id"] = str(owner.workshop_id)
+        refresh["workshop_id"] = str(owner.workshop_id) if owner.workshop_id else None
         refresh["email"] = owner.email
 
-        return Response(
-            {
-                "status": "success",
-                "data": {
-                    "access_token": str(refresh.access_token),
-                    "refresh_token": str(refresh),
-                    "user": PublicUserSerializer(owner).data,
-                    "workshop": {
-                        "id": str(workshop.id),
-                        "name": workshop.name,
-                        "slug": workshop.slug,
-                    },
-                },
+        response_data = {
+            "status": "success",
+            "data": {
+                "access_token": str(refresh.access_token),
+                "refresh_token": str(refresh),
+                "user": PublicUserSerializer(owner).data,
             },
-            status=status.HTTP_201_CREATED,
-        )
+        }
+        
+        if workshop:
+            response_data["data"]["workshop"] = {
+                "id": str(workshop.id),
+                "name": workshop.name,
+                "slug": workshop.slug,
+            }
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
 
 class RegisterTechnicianView(generics.CreateAPIView):

@@ -24,8 +24,27 @@
 
 .login-header .logo {
   font-size: 2rem;
-  color: var(--primary-color);
+  color: #e03131;
   margin-bottom: 0.5rem;
+  font-weight: bold;
+  text-decoration: none;
+  display: block;
+  transition: opacity 0.2s ease;
+}
+
+.login-header .logo:hover {
+  opacity: 0.8;
+}
+
+.logo-img {
+  display: inline-block;
+  margin-bottom: 0.5rem;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.logo-img:hover {
+  opacity: 0.8;
 }
 
 .subtitle {

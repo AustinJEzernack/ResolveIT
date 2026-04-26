@@ -39,10 +39,6 @@ const SignUp: React.FC = () => {
     setError('')
 
     const workshopSlug = slugifyWorkshopName(formData.workshop_name)
-    if (accountType === 'manager' && !workshopSlug) {
-      setError('Workshop name is required for managers')
-      return
-    }
 
     if (formData.password !== formData.password_confirm) {
       setError('Passwords do not match')
@@ -59,8 +55,8 @@ const SignUp: React.FC = () => {
     try {
       const response = accountType === 'manager'
         ? await apiClient.post('/auth/register/', {
-            workshop_name: formData.workshop_name,
-            workshop_slug: workshopSlug,
+            workshop_name: formData.workshop_name || null,
+            workshop_slug: workshopSlug || null,
             email: formData.email,
             password: formData.password,
             first_name: formData.first_name,
@@ -134,7 +130,7 @@ const SignUp: React.FC = () => {
 
           {accountType === 'manager' ? (
             <div className="form-group">
-              <label htmlFor="workshop_name">Workshop Name</label>
+              <label htmlFor="workshop_name">Workshop Name (Optional)</label>
               <input
                 id="workshop_name"
                 name="workshop_name"
@@ -142,7 +138,6 @@ const SignUp: React.FC = () => {
                 value={formData.workshop_name}
                 onChange={handleChange}
                 placeholder="Acme IT"
-                required={accountType === 'manager'}
               />
             </div>
           ) : null}

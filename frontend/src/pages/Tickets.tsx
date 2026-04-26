@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, CheckCircle2, ChevronDown, ChevronUp, Plus, Ticket } from 'lucide-react'
 import apiClient from '@services/api'
 import { getAccessToken, type AuthUser } from '@services/auth'
@@ -237,6 +237,9 @@ const Tickets: React.FC = () => {
       <div className="tickets-page">
         <nav className="tickets-navbar">
           <div className="tickets-navbar-left">
+            <Link to="/" className="logo-link" style={{ marginRight: '16px' }}>
+              ResolveIT
+            </Link>
             <button className="tickets-back-btn" onClick={() => navigate('/dashboard')}>
               <ArrowLeft size={14} strokeWidth={1.75} />
               Dashboard
@@ -251,7 +254,9 @@ const Tickets: React.FC = () => {
                 Create Ticket
               </button>
             ) : null}
-            <img src="/resolveIT_logo_final.svg" alt="ResolveIT" height={24} />
+            <Link to="/" className="logo-link">
+              ResolveIT
+            </Link>
           </div>
         </nav>
 

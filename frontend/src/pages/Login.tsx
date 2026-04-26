@@ -35,7 +35,7 @@ const Login: React.FC = () => {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h1 className="logo">ResolveIT</h1>
+          <Link to="/" className="logo">ResolveIT</Link>
           <p className="subtitle">Welcome back</p>
         </div>
 
