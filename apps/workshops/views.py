@@ -1,6 +1,7 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.http import Http404
 from django.utils.text import slugify
 
 from apps.accounts.models import User
@@ -27,7 +28,10 @@ class WorkshopCreateView(generics.CreateAPIView):
         workshop = serializer.save()
         workshop.slug = slugify(workshop.name)
         workshop.save(update_fields=["slug"])
-        
+
+        # Create default "General" workbench
+        Workbench.objects.create(workshop=workshop, name="General")
+
         # Assign current user as owner of this workshop
         user = self.request.user
         user.workshop = workshop
@@ -44,7 +48,10 @@ class WorkshopDetailView(generics.RetrieveUpdateAPIView):
         return WorkshopSerializer
 
     def get_object(self):
-        return self.request.user.workshop
+        workshop = self.request.user.workshop
+        if workshop is None:
+            raise Http404
+        return workshop
 
     def get_permissions(self):
         if self.request.method in ("PUT", "PATCH"):

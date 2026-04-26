@@ -37,13 +37,17 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (user) {
-      apiClient.get('/workshops/')
+      apiClient.get('/workshops/me/')
         .then((response) => {
-          setWorkshops(response.data)
+          setWorkshops(response.data ? [response.data] : [])
           setWorkshopsLoading(false)
         })
         .catch((error) => {
-          console.error('Failed to load workshops:', error)
+          // 404 means the user has no workshop yet — that's a normal state
+          if (error.response?.status !== 404) {
+            console.error('Failed to load workshops:', error)
+          }
+          setWorkshops([])
           setWorkshopsLoading(false)
         })
     }

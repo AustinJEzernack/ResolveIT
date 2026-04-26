@@ -86,6 +86,19 @@ const Workshop: React.FC = () => {
   })
   const [creatingWorkbench, setCreatingWorkbench] = useState(false)
   const [createWorkbenchError, setCreateWorkbenchError] = useState('')
+  const [isCreateTicketOpen, setIsCreateTicketOpen] = useState(false)
+  const [creatingTicket, setCreatingTicket] = useState(false)
+  const [createTicketError, setCreateTicketError] = useState('')
+  const [workshopMembers, setWorkshopMembers] = useState<WorkshopMember[]>([])
+  const [workshopMembersLoading, setWorkshopMembersLoading] = useState(false)
+  const [createTicketForm, setCreateTicketForm] = useState({
+    title: '',
+    description: '',
+    urgency: 'MEDIUM',
+    category: '',
+    asset_id: '',
+    assignee_id: '',
+  })
 
   const wsRef = useRef<WebSocket | null>(null)
   const prevChannelRef = useRef<string | null>(null)
@@ -338,6 +351,58 @@ const Workshop: React.FC = () => {
     }
   }
 
+  const handleOpenCreateTicket = async () => {
+    setCreateTicketError('')
+    setCreateTicketForm({ title: '', description: '', urgency: 'MEDIUM', category: '', asset_id: '', assignee_id: '' })
+    setIsCreateTicketOpen(true)
+    if (workshopMembers.length === 0) {
+      setWorkshopMembersLoading(true)
+      try {
+        const res = await apiClient.get('/workshops/me/members/')
+        setWorkshopMembers(unwrapListPayload<WorkshopMember>(res.data))
+      } catch {
+        // leave empty
+      } finally {
+        setWorkshopMembersLoading(false)
+      }
+    }
+  }
+
+  const handleCreateTicket = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!activeWorkbenchId || creatingTicket) return
+    if (!createTicketForm.assignee_id) {
+      setCreateTicketError('Assignee is required')
+      return
+    }
+    setCreatingTicket(true)
+    setCreateTicketError('')
+    try {
+      await apiClient.post('/tickets/', {
+        title: createTicketForm.title.trim(),
+        description: createTicketForm.description.trim(),
+        urgency: createTicketForm.urgency,
+        category: createTicketForm.category.trim(),
+        asset_id: createTicketForm.asset_id.trim(),
+        workbench_id: activeWorkbenchId,
+        assignee_id: createTicketForm.assignee_id,
+      })
+      setIsCreateTicketOpen(false)
+      fetchTickets(activeWorkbenchId).then(setTickets).catch(() => {})
+    } catch (err: any) {
+      const data = err.response?.data
+      setCreateTicketError(
+        data?.detail ||
+        data?.workbench_id?.[0] ||
+        data?.assignee_id?.[0] ||
+        data?.title?.[0] ||
+        'Failed to create ticket'
+      )
+    } finally {
+      setCreatingTicket(false)
+    }
+  }
+
   const activeWorkbench = workbenches.find((workbench) => workbench.id === activeWorkbenchId)
   const canCreateWorkshop = !workshop
   const canCreateWorkbenches = Boolean(workshop && currentRole === 'OWNER')
@@ -431,6 +496,16 @@ const Workshop: React.FC = () => {
               <div className="workshop-middle-header">
                 <Ticket size={15} strokeWidth={1.75} style={{ color: 'var(--fg-muted)' }} />
                 <h2>{activeWorkbench?.name ?? workshop?.name ?? 'Workbench'}</h2>
+                {activeWorkbenchId ? (
+                  <button
+                    className="workshop-action-btn"
+                    onClick={handleOpenCreateTicket}
+                    title="Create a ticket in this workbench"
+                  >
+                    <Plus size={14} strokeWidth={1.75} />
+                    Create Ticket
+                  </button>
+                ) : null}
               </div>
 
               <div className="workshop-tickets">
@@ -608,6 +683,97 @@ const Workshop: React.FC = () => {
                   disabled={creatingWorkbench || !workbenchForm.name.trim()}
                 >
                   {creatingWorkbench ? 'Creating...' : 'Create Workbench'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {isCreateTicketOpen ? (
+        <div className="modal-overlay" onClick={() => setIsCreateTicketOpen(false)}>
+          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Create Ticket — {activeWorkbench?.name}</h2>
+              <button className="modal-close-btn" onClick={() => setIsCreateTicketOpen(false)} aria-label="Close">✕</button>
+            </div>
+            <form onSubmit={handleCreateTicket} className="workshop-form">
+              <div className="form-group">
+                <label htmlFor="ticket_title">Title</label>
+                <input
+                  id="ticket_title"
+                  value={createTicketForm.title}
+                  onChange={(event) => setCreateTicketForm((prev) => ({ ...prev, title: event.target.value }))}
+                  required
+                  disabled={creatingTicket}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="ticket_description">Description</label>
+                <textarea
+                  id="ticket_description"
+                  rows={3}
+                  value={createTicketForm.description}
+                  onChange={(event) => setCreateTicketForm((prev) => ({ ...prev, description: event.target.value }))}
+                  required
+                  disabled={creatingTicket}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="ticket_category">Category</label>
+                <input
+                  id="ticket_category"
+                  value={createTicketForm.category}
+                  onChange={(event) => setCreateTicketForm((prev) => ({ ...prev, category: event.target.value }))}
+                  required
+                  disabled={creatingTicket}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="ticket_urgency">Urgency</label>
+                <select
+                  id="ticket_urgency"
+                  value={createTicketForm.urgency}
+                  onChange={(event) => setCreateTicketForm((prev) => ({ ...prev, urgency: event.target.value }))}
+                  disabled={creatingTicket}
+                >
+                  <option value="LOW">LOW</option>
+                  <option value="MEDIUM">MEDIUM</option>
+                  <option value="HIGH">HIGH</option>
+                  <option value="CRITICAL">CRITICAL</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="ticket_asset_id">Asset ID</label>
+                <input
+                  id="ticket_asset_id"
+                  value={createTicketForm.asset_id}
+                  onChange={(event) => setCreateTicketForm((prev) => ({ ...prev, asset_id: event.target.value }))}
+                  disabled={creatingTicket}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="ticket_assignee">Assignee</label>
+                <select
+                  id="ticket_assignee"
+                  value={createTicketForm.assignee_id}
+                  onChange={(event) => setCreateTicketForm((prev) => ({ ...prev, assignee_id: event.target.value }))}
+                  required
+                  disabled={creatingTicket || workshopMembersLoading}
+                >
+                  <option value="">{workshopMembersLoading ? 'Loading...' : 'Select a member'}</option>
+                  {workshopMembers.map((member) => (
+                    <option key={member.id} value={member.id}>{member.full_name || member.username}</option>
+                  ))}
+                </select>
+              </div>
+              {createTicketError ? <div className="error-message">{createTicketError}</div> : null}
+              <div className="modal-actions">
+                <button type="button" className="btn-cancel" onClick={() => setIsCreateTicketOpen(false)} disabled={creatingTicket}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-submit" disabled={creatingTicket}>
+                  {creatingTicket ? 'Creating...' : 'Create Ticket'}
                 </button>
               </div>
             </form>
