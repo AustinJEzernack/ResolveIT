@@ -8,9 +8,7 @@ const Home: React.FC = () => {
     <div className="home-container">
       <header className="navbar">
         <div className="navbar-content">
-          <Link to="/" className="logo">
-            <img src="/resolveIT_logo_final.svg" alt="ResolveIT" height={28} />
-          </Link>
+          <Link to="/" className="logo">ResolveIT</Link>
           <nav className="nav-links">
             <Link to="/about">About</Link>
             <a href="#features">Features</a>
@@ -39,6 +37,7 @@ const Home: React.FC = () => {
             <div className="feature-icon"><Ticket size={16} strokeWidth={1.75} /></div>
             <h4>Ticket Management</h4>
             <p>Create, track, and resolve tickets efficiently with our intuitive system.</p>
+            <Link to="/tickets" className="feature-link-btn">Open Tickets</Link>
           </div>
           <div className="feature-card">
             <div className="feature-icon"><MessageSquare size={16} strokeWidth={1.75} /></div>

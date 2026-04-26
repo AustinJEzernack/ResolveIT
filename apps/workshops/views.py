@@ -1,11 +1,13 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.http import Http404
 from django.utils.text import slugify
 
 from apps.accounts.models import User
 from apps.accounts.serializers import PublicUserSerializer
 from apps.core.permissions import IsOwner
+from apps.messaging.models import Channel, ChannelMember
 
 from .models import Workbench, Workshop
 from .serializers import UpdateWorkshopSerializer, WorkbenchSerializer, WorkshopSerializer
@@ -26,7 +28,10 @@ class WorkshopCreateView(generics.CreateAPIView):
         workshop = serializer.save()
         workshop.slug = slugify(workshop.name)
         workshop.save(update_fields=["slug"])
-        
+
+        # Create default "General" workbench
+        Workbench.objects.create(workshop=workshop, name="General")
+
         # Assign current user as owner of this workshop
         user = self.request.user
         user.workshop = workshop
@@ -43,7 +48,10 @@ class WorkshopDetailView(generics.RetrieveUpdateAPIView):
         return WorkshopSerializer
 
     def get_object(self):
-        return self.request.user.workshop
+        workshop = self.request.user.workshop
+        if workshop is None:
+            raise Http404
+        return workshop
 
     def get_permissions(self):
         if self.request.method in ("PUT", "PATCH"):
@@ -64,6 +72,69 @@ class WorkshopMembersView(generics.ListAPIView):
         return User.objects.filter(
             workshop=self.request.user.workshop, is_active=True
         ).order_by("first_name")
+
+
+class AvailableUsersView(generics.ListAPIView):
+    """GET /api/workshops/available-members/ — active non-owner users outside this workshop."""
+
+    serializer_class = PublicUserSerializer
+    permission_classes = [IsOwner]
+
+    def get_queryset(self):
+        return User.objects.filter(is_active=True).exclude(
+            id=self.request.user.id
+        ).exclude(
+            workshop=self.request.user.workshop
+        ).exclude(
+            role=User.Role.OWNER
+        ).order_by("first_name", "last_name", "email")
+
+
+class AddMemberView(APIView):
+    """POST /api/workshops/me/members/<user_id>/assign/ — add an existing user to the current workshop."""
+
+    permission_classes = [IsOwner]
+
+    def post(self, request, user_id):
+        try:
+            user = User.objects.get(id=user_id, is_active=True)
+        except User.DoesNotExist:
+            return Response(
+                {"status": "error", "message": "User not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if user.role == User.Role.OWNER:
+            return Response(
+                {"status": "error", "message": "Owners cannot be reassigned"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if user.workshop_id == request.user.workshop_id:
+            return Response(
+                {"status": "error", "message": "User is already in your workshop"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.workshop = request.user.workshop
+        user.role = User.Role.TECHNICIAN
+        user.save(update_fields=["workshop", "role"])
+
+        # Add the new member to all existing workbench channels in this workshop
+        channels = Channel.objects.filter(workshop=request.user.workshop)
+        ChannelMember.objects.bulk_create(
+            [ChannelMember(channel=channel, user=user, is_admin=False) for channel in channels],
+            ignore_conflicts=True,
+        )
+
+        return Response(
+            {
+                "status": "success",
+                "message": "Member added to workshop",
+                "data": {"user": PublicUserSerializer(user).data},
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class DeactivateMemberView(APIView):
@@ -114,7 +185,28 @@ class WorkbenchListCreateView(generics.ListCreateAPIView):
         return [permissions.IsAuthenticated()]
 
     def perform_create(self, serializer):
-        serializer.save(workshop=self.request.user.workshop)
+        workbench = serializer.save(workshop=self.request.user.workshop)
+
+        # Auto-create a matching PUBLIC channel so workbench chat works immediately
+        workshop = self.request.user.workshop
+        channel = Channel.objects.create(
+            name=workbench.name,
+            type=Channel.Type.PUBLIC,
+            is_encrypted=False,
+            workshop=workshop,
+        )
+        members = User.objects.filter(workshop=workshop, is_active=True)
+        ChannelMember.objects.bulk_create(
+            [
+                ChannelMember(
+                    channel=channel,
+                    user=member,
+                    is_admin=(member.id == self.request.user.id),
+                )
+                for member in members
+            ],
+            ignore_conflicts=True,
+        )
 
 
 class WorkbenchDetailView(generics.RetrieveUpdateDestroyAPIView):

@@ -31,32 +31,36 @@ class PublicUserSerializer(serializers.ModelSerializer):
     """Safe user representation — no password or sensitive fields."""
 
     full_name = serializers.SerializerMethodField()
+    username = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
-            "id", "email", "first_name", "last_name",
+            "id", "email", "username", "first_name", "last_name",
             "full_name", "role", "avatar_url", "last_active_at",
         ]
 
     def get_full_name(self, obj):
         return obj.get_full_name()
 
+    def get_username(self, obj):
+        return obj.email.split("@", 1)[0]
+
 
 class RegisterWorkshopSerializer(serializers.Serializer):
     """Validate the combined workshop + owner registration payload."""
 
-    workshop_name = serializers.CharField(min_length=2, max_length=100)
-    workshop_slug = serializers.SlugField(min_length=2, max_length=50)
+    workshop_name = serializers.CharField(min_length=2, max_length=100, required=False, allow_blank=True, allow_null=True)
+    workshop_slug = serializers.CharField(max_length=50, required=False, allow_blank=True, allow_null=True)
     email = serializers.EmailField()
     password = serializers.CharField(min_length=8, write_only=True)
     first_name = serializers.CharField(min_length=1, max_length=50)
     last_name = serializers.CharField(min_length=1, max_length=50)
 
     def validate_workshop_slug(self, value):
-        if Workshop.objects.filter(slug=value).exists():
+        if value and Workshop.objects.filter(slug=value).exists():
             raise serializers.ValidationError("This slug is already taken.")
-        return value.lower()
+        return value if value else None
 
     def validate_email(self, value):
         if User.objects.filter(email=value.lower()).exists():
@@ -65,10 +69,13 @@ class RegisterWorkshopSerializer(serializers.Serializer):
 
     @transaction.atomic
     def create(self, validated_data):
-        workshop = Workshop.objects.create(
-            name=validated_data["workshop_name"],
-            slug=validated_data["workshop_slug"],
-        )
+        workshop = None
+        if validated_data.get("workshop_name") and validated_data.get("workshop_slug"):
+            workshop = Workshop.objects.create(
+                name=validated_data["workshop_name"],
+                slug=validated_data["workshop_slug"],
+            )
+        
         owner = User.objects.create_user(
             email=validated_data["email"],
             password=validated_data["password"],
@@ -103,6 +110,31 @@ class RegisterTechnicianSerializer(serializers.ModelSerializer):
             last_name=validated_data["last_name"],
             role=User.Role.TECHNICIAN,
             workshop=workshop,
+        )
+
+
+class RegisterStandaloneTechnicianSerializer(serializers.ModelSerializer):
+    """Public signup: create a Technician account without a workshop."""
+
+    password = serializers.CharField(min_length=8, write_only=True)
+
+    class Meta:
+        model = User
+        fields = ["email", "password", "first_name", "last_name"]
+
+    def validate_email(self, value):
+        if User.objects.filter(email=value.lower()).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value.lower()
+
+    def create(self, validated_data):
+        return User.objects.create_user(
+            email=validated_data["email"],
+            password=validated_data["password"],
+            first_name=validated_data["first_name"],
+            last_name=validated_data["last_name"],
+            role=User.Role.TECHNICIAN,
+            workshop=None,
         )
 
 

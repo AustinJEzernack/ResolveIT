@@ -22,6 +22,11 @@
   --text-color: var(--fg-1);
   --border-color: var(--border-default);
 
+  /* Input and form fields */
+  --bg-input: #1a1a1c;
+  --bg-disabled: #0d0d0e;
+  --bg-hover: #1f1f22;
+
   /* Preserved */
   --secondary-color: #00C853;
   --text-secondary: var(--fg-muted);

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import mockAuth from '@services/mockAuth'
+import apiClient from '@services/api'
 import '../styles/Login.css'
 
 const Login: React.FC = () => {
@@ -16,11 +16,11 @@ const Login: React.FC = () => {
     setLoading(true)
 
     try {
-      const response = await mockAuth.login(email, password)
+      const response = await apiClient.post('/auth/token/', { email, password })
 
       // Store tokens
-      localStorage.setItem('access_token', response.access)
-      localStorage.setItem('refresh_token', response.refresh)
+      localStorage.setItem('access_token', response.data.access)
+      localStorage.setItem('refresh_token', response.data.refresh)
 
       // Redirect to dashboard
       navigate('/dashboard')
@@ -35,7 +35,7 @@ const Login: React.FC = () => {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h1 className="logo">ResolveIT</h1>
+          <Link to="/" className="logo">ResolveIT</Link>
           <p className="subtitle">Welcome back</p>
         </div>
 

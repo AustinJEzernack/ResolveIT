@@ -1,5 +1,7 @@
 import logging
 
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import status
@@ -198,6 +200,16 @@ class MessageListCreateView(APIView):
 
         data = MessageSerializer(message).data
         data["content"] = plain_content  # return plaintext to the sender
+
+        # Broadcast to all WebSocket clients in this channel
+        try:
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f"channel_{channel_id}",
+                {"type": "message.new", "data": {**data, "channel_id": str(channel_id)}},
+            )
+        except Exception:
+            pass  # Don't fail the request if WebSocket broadcast fails
 
         return Response(
             {"status": "success", "data": {"message": data}},

@@ -23,6 +23,26 @@
   gap: 1.5rem;
 }
 
+.logo-link {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #e03131;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  transition: opacity 0.2s ease;
+}
+
+.logo-link:hover {
+  opacity: 0.8;
+}
+
+.workshop-navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .workshop-back-btn {
   background: none;
   border: none;
@@ -45,6 +65,42 @@
   font-weight: 600;
   color: var(--fg-1);
   margin: 0;
+}
+
+.workshop-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 36px;
+  padding: 0 0.9rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-panel);
+  color: var(--fg-1);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.workshop-action-btn:hover:not(:disabled) {
+  background-color: var(--bg-app);
+  border-color: var(--accent);
+}
+
+.workshop-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.workshop-action-btn-primary {
+  background-color: var(--accent);
+  border-color: transparent;
+}
+
+.workshop-action-btn-primary:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+  box-shadow: var(--shadow-red);
 }
 
 /* Main layout */
@@ -153,6 +209,7 @@
   display: flex;
   align-items: center;
   gap: 1rem;
+  width: 100%;
   padding: 0.6rem 0.75rem;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-default);
@@ -160,6 +217,8 @@
   background-color: var(--bg-card);
   cursor: pointer;
   transition: var(--transition);
+  text-align: left;
+  font: inherit;
 }
 
 .ticket-row:hover {
@@ -183,6 +242,45 @@
   text-overflow: ellipsis;
 }
 
+.ticket-assignee {
+  min-width: 140px;
+  max-width: 180px;
+  font-size: 0.78rem;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticket-expand-icon {
+  color: var(--fg-subtle);
+  display: inline-flex;
+  align-items: center;
+}
+
+.ticket-card-inline {
+  border-radius: var(--radius-md);
+}
+
+.ticket-inline-details {
+  margin: 0 0.25rem 0.75rem;
+  border: 1px solid var(--border-default);
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background-color: var(--bg-panel);
+  padding: 0.75rem 0.85rem;
+}
+
+.ticket-inline-details p {
+  margin: 0 0 0.35rem;
+  color: var(--fg-muted);
+  font-size: 0.8rem;
+}
+
+.ticket-inline-details p:last-child {
+  margin-bottom: 0;
+}
+
 .ticket-status {
   font-size: 0.7rem;
   font-weight: 600;
@@ -193,18 +291,28 @@
 }
 
 .ticket-status.open {
-  background-color: var(--accent-soft);
-  color: var(--accent);
+  background-color: rgba(0, 200, 83, 0.1);
+  color: #00C853;
+}
+
+.ticket-status.assigned {
+  background-color: rgba(251, 192, 45, 0.1);
+  color: #FBC02D;
 }
 
 .ticket-status.in-progress {
-  background-color: rgba(255, 165, 0, 0.1);
-  color: #FFA500;
+  background-color: rgba(0, 188, 212, 0.1);
+  color: #00BCD4;
 }
 
 .ticket-status.resolved {
-  background-color: rgba(0, 200, 83, 0.1);
-  color: #00C853;
+  background-color: rgba(251, 140, 0, 0.1);
+  color: #FB8C00;
+}
+
+.ticket-status.closed {
+  background-color: rgba(229, 57, 53, 0.1);
+  color: #E53935;
 }
 
 /* Chat messages */
@@ -249,6 +357,15 @@
   font-weight: 600;
   color: var(--fg-muted);
   margin-bottom: 0.2rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.chat-timestamp {
+  font-size: 0.68rem;
+  font-weight: 400;
+  color: var(--fg-subtle);
 }
 
 .chat-text {
@@ -317,6 +434,144 @@
 
 .workshop-empty p {
   font-size: 0.9rem;
+}
+
+.workshop-invite-modal {
+  max-width: 560px;
+}
+
+.workshop-member-search {
+  margin-bottom: 1rem;
+}
+
+.workshop-member-search input {
+  width: 100%;
+  background-color: var(--bg-app);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.9rem;
+  color: var(--fg-1);
+  font-size: 0.9rem;
+  transition: var(--transition);
+}
+
+.workshop-member-search input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--shadow-red);
+}
+
+.workshop-member-search input::placeholder {
+  color: var(--fg-subtle);
+}
+
+.workshop-success-message {
+  background-color: rgba(0, 200, 83, 0.12);
+  border: 1px solid rgba(0, 200, 83, 0.28);
+  color: #8ef0b1;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.workshop-member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.workshop-member-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-app);
+  padding: 0.9rem 1rem;
+  cursor: pointer;
+  text-align: left;
+  transition: var(--transition);
+}
+
+.workshop-member-item:hover:not(:disabled) {
+  border-color: var(--accent);
+  background-color: var(--bg-panel);
+}
+
+.workshop-member-item:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.workshop-member-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.workshop-member-name {
+  color: var(--fg-1);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.workshop-member-username,
+.workshop-member-email {
+  color: var(--fg-muted);
+  font-size: 0.8rem;
+}
+
+.workshop-member-email {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workshop-member-action {
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.workshop-member-empty {
+  margin: 0;
+  padding: 1rem;
+  color: var(--fg-muted);
+  font-size: 0.85rem;
+  text-align: center;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+@media (max-width: 880px) {
+  .workshop-navbar {
+    height: auto;
+    padding: 0.9rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .workshop-navbar-left,
+  .workshop-navbar-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .workshop-navbar-right {
+    flex-wrap: wrap;
+  }
+
+  .workshop-action-btn {
+    flex: 1 1 180px;
+    justify-content: center;
+  }
 }
 
 /* Responsive */
