@@ -172,19 +172,28 @@
 }
 
 .ticket-chip.open {
-  background-color: var(--accent-soft);
-  color: var(--accent);
+  background-color: rgba(0, 200, 83, 0.12);
+  color: #00C853;
+}
+
+.ticket-chip.assigned {
+  background-color: rgba(251, 192, 45, 0.12);
+  color: #FBC02D;
 }
 
 .ticket-chip.in-progress {
-  background-color: rgba(255, 165, 0, 0.12);
-  color: #FFA500;
+  background-color: rgba(0, 188, 212, 0.12);
+  color: #00BCD4;
 }
 
-.ticket-chip.resolved,
+.ticket-chip.resolved {
+  background-color: rgba(251, 140, 0, 0.12);
+  color: #FB8C00;
+}
+
 .ticket-chip.closed {
-  background-color: rgba(0, 200, 83, 0.12);
-  color: #00C853;
+  background-color: rgba(229, 57, 53, 0.12);
+  color: #E53935;
 }
 
 .ticket-details {

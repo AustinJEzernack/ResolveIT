@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, CheckCircle2, ChevronDown, ChevronUp, Plus, Ticket } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Plus, Ticket } from 'lucide-react'
 import apiClient from '@services/api'
 import { getAccessToken, type AuthUser } from '@services/auth'
 import '../styles/Tickets.css'
@@ -99,7 +99,7 @@ const Tickets: React.FC = () => {
   const [tickets, setTickets] = useState<TicketItem[]>([])
   const [workbenches, setWorkbenches] = useState<WorkbenchOption[]>([])
   const [members, setMembers] = useState<MemberOption[]>([])
-  const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null)
+  const [selectedTicket, setSelectedTicket] = useState<TicketItem | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -107,6 +107,8 @@ const Tickets: React.FC = () => {
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
   const [completingId, setCompletingId] = useState<string | null>(null)
+  const [savingTicket, setSavingTicket] = useState(false)
+  const [editError, setEditError] = useState('')
   const [createForm, setCreateForm] = useState({
     title: '',
     description: '',
@@ -114,6 +116,16 @@ const Tickets: React.FC = () => {
     category: '',
     asset_id: '',
     workbench_id: '',
+    assignee_id: '',
+  })
+  const [editForm, setEditForm] = useState({
+    title: '',
+    description: '',
+    status: 'OPEN',
+    urgency: 'MEDIUM',
+    category: '',
+    asset_id: '',
+    resolution: '',
     assignee_id: '',
   })
 
@@ -218,13 +230,92 @@ const Tickets: React.FC = () => {
     }
   }
 
+  const handleOpenTicket = (ticket: TicketItem) => {
+    setEditError('')
+    setSelectedTicket(ticket)
+    setEditForm({
+      title: ticket.title || '',
+      description: ticket.description || '',
+      status: ticket.status || 'OPEN',
+      urgency: ticket.urgency || 'MEDIUM',
+      category: ticket.category || '',
+      asset_id: ticket.asset_id || '',
+      resolution: ticket.resolution || '',
+      assignee_id: ticket.assignee?.id || '',
+    })
+  }
+
+  const handleSaveTicket = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!selectedTicket || savingTicket) return
+
+    if (
+      (editForm.status === 'RESOLVED' || editForm.status === 'CLOSED') &&
+      !editForm.resolution.trim()
+    ) {
+      setEditError('Resolution is required when status is RESOLVED or CLOSED')
+      return
+    }
+
+    setSavingTicket(true)
+    setEditError('')
+    try {
+      const response = await apiClient.patch(`/tickets/${selectedTicket.id}/`, {
+        title: editForm.title.trim(),
+        description: editForm.description.trim(),
+        status: editForm.status,
+        urgency: editForm.urgency,
+        category: editForm.category.trim(),
+        asset_id: editForm.asset_id.trim(),
+        resolution: editForm.resolution.trim(),
+        assignee_id: editForm.assignee_id || null,
+      })
+
+      const patchedTicket = (response.data?.data?.ticket || response.data?.ticket || response.data) as TicketItem
+      const ticketId = patchedTicket?.id || selectedTicket.id
+      const detailResponse = await apiClient.get(`/tickets/${ticketId}/`)
+      const persistedTicket = detailResponse.data as TicketItem
+
+      if (persistedTicket?.id) {
+        setTickets((prev) => prev.map((ticket) => (ticket.id === persistedTicket.id ? persistedTicket : ticket)))
+        setSelectedTicket(null)
+      }
+    } catch (saveErr: any) {
+      const data = saveErr.response?.data
+      setEditError(
+        data?.detail ||
+        data?.message ||
+        data?.title?.[0] ||
+        data?.description?.[0] ||
+        data?.status?.[0] ||
+        data?.urgency?.[0] ||
+        data?.category?.[0] ||
+        data?.asset_id?.[0] ||
+        data?.assignee_id?.[0] ||
+        data?.resolution?.[0] ||
+        'Failed to update ticket'
+      )
+    } finally {
+      setSavingTicket(false)
+    }
+  }
+
   const handleCompleteTicket = async (ticketId: string) => {
     if (completingId) return
     setCompletingId(ticketId)
     try {
-      await apiClient.delete(`/tickets/${ticketId}/`)
-      setTickets((prev) => prev.filter((ticket) => ticket.id !== ticketId))
-      if (expandedTicketId === ticketId) setExpandedTicketId(null)
+      const response = await apiClient.patch(`/tickets/${ticketId}/`, { status: 'CLOSED' })
+      const patchedTicket = (response.data?.data?.ticket || response.data?.ticket || response.data) as TicketItem
+      const persistedId = patchedTicket?.id || ticketId
+      const detailResponse = await apiClient.get(`/tickets/${persistedId}/`)
+      const persistedTicket = detailResponse.data as TicketItem
+      if (persistedTicket?.id) {
+        setTickets((prev) => prev.map((ticket) => (ticket.id === persistedTicket.id ? persistedTicket : ticket)))
+        if (selectedTicket?.id === ticketId) {
+          setSelectedTicket(persistedTicket)
+          setEditForm((prev) => ({ ...prev, status: persistedTicket.status }))
+        }
+      }
     } catch {
       // silent fail to avoid noisy UX
     } finally {
@@ -274,13 +365,12 @@ const Tickets: React.FC = () => {
           ) : (
             <div className="tickets-list">
               {tickets.map((ticket) => {
-                const expanded = expandedTicketId === ticket.id
                 return (
-                  <div key={ticket.id} className={`ticket-card ${expanded ? 'expanded' : ''}`}>
+                  <div key={ticket.id} className="ticket-card">
                     <button
                       type="button"
                       className="ticket-summary"
-                      onClick={() => setExpandedTicketId(expanded ? null : ticket.id)}
+                      onClick={() => handleOpenTicket(ticket)}
                     >
                       <div className="ticket-summary-main">
                         <span className="ticket-summary-title">{ticket.title}</span>
@@ -290,35 +380,8 @@ const Tickets: React.FC = () => {
                         <span className={`ticket-chip ${ticket.status.toLowerCase().replace('_', '-')}`}>
                           {ticket.status.replace('_', ' ')}
                         </span>
-                        {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                       </div>
                     </button>
-
-                    {expanded ? (
-                      <div className="ticket-details">
-                        <p><strong>Description:</strong> {ticket.description || '—'}</p>
-                        <p><strong>Category:</strong> {ticket.category || '—'}</p>
-                        <p><strong>Urgency:</strong> {ticket.urgency}</p>
-                        <p><strong>Asset ID:</strong> {ticket.asset_id || '—'}</p>
-                        <p><strong>Requestor:</strong> {ticket.requestor?.full_name || ticket.requestor?.email || '—'}</p>
-                        <p><strong>Assignee:</strong> {ticket.assignee?.full_name || ticket.assignee?.email || '—'}</p>
-                        <p><strong>Resolution:</strong> {ticket.resolution || '—'}</p>
-                        <p><strong>Created:</strong> {new Date(ticket.created_at).toLocaleString()}</p>
-                        <p><strong>Updated:</strong> {new Date(ticket.updated_at).toLocaleString()}</p>
-
-                        <div className="ticket-detail-actions">
-                          <button
-                            type="button"
-                            className="ticket-complete-btn"
-                            onClick={() => handleCompleteTicket(ticket.id)}
-                            disabled={completingId === ticket.id}
-                          >
-                            <CheckCircle2 size={14} strokeWidth={1.75} />
-                            {completingId === ticket.id ? 'Completing...' : 'Complete'}
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
                   </div>
                 )
               })}
@@ -326,6 +389,155 @@ const Tickets: React.FC = () => {
           )}
         </div>
       </div>
+
+      {selectedTicket ? (
+        <div className="modal-overlay" onClick={() => setSelectedTicket(null)}>
+          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Edit Ticket</h2>
+              <button className="modal-close-btn" onClick={() => setSelectedTicket(null)} aria-label="Close">✕</button>
+            </div>
+
+            <form onSubmit={handleSaveTicket} className="workshop-form">
+              <div className="form-group">
+                <label htmlFor="edit_ticket_title">Title</label>
+                <input
+                  id="edit_ticket_title"
+                  value={editForm.title}
+                  onChange={(event) => setEditForm((prev) => ({ ...prev, title: event.target.value }))}
+                  required
+                  disabled={savingTicket}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="edit_ticket_description">Description</label>
+                <textarea
+                  id="edit_ticket_description"
+                  rows={3}
+                  value={editForm.description}
+                  onChange={(event) => setEditForm((prev) => ({ ...prev, description: event.target.value }))}
+                  required
+                  disabled={savingTicket}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="edit_ticket_status">Status</label>
+                <select
+                  id="edit_ticket_status"
+                  value={editForm.status}
+                  onChange={(event) => setEditForm((prev) => ({ ...prev, status: event.target.value }))}
+                  disabled={savingTicket}
+                >
+                  <option value="OPEN">OPEN</option>
+                  <option value="ASSIGNED">ASSIGNED</option>
+                  <option value="IN_PROGRESS">IN_PROGRESS</option>
+                  <option value="RESOLVED">RESOLVED</option>
+                  <option value="CLOSED">CLOSED</option>
+                </select>
+                <div style={{ marginTop: '6px', fontSize: '0.8rem', color: 'var(--fg-muted)' }}>
+                  {editForm.status === 'CLOSED'
+                    ? 'Status: CLOSED (ticket is retained; it is not deleted).'
+                    : `Status: ${editForm.status}`}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="edit_ticket_urgency">Urgency</label>
+                <select
+                  id="edit_ticket_urgency"
+                  value={editForm.urgency}
+                  onChange={(event) => setEditForm((prev) => ({ ...prev, urgency: event.target.value }))}
+                  disabled={savingTicket}
+                >
+                  <option value="LOW">LOW</option>
+                  <option value="MEDIUM">MEDIUM</option>
+                  <option value="HIGH">HIGH</option>
+                  <option value="CRITICAL">CRITICAL</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="edit_ticket_category">Category</label>
+                <input
+                  id="edit_ticket_category"
+                  value={editForm.category}
+                  onChange={(event) => setEditForm((prev) => ({ ...prev, category: event.target.value }))}
+                  required
+                  disabled={savingTicket}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="edit_ticket_asset_id">Asset ID</label>
+                <input
+                  id="edit_ticket_asset_id"
+                  value={editForm.asset_id}
+                  onChange={(event) => setEditForm((prev) => ({ ...prev, asset_id: event.target.value }))}
+                  disabled={savingTicket}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="edit_ticket_assignee">Assignee</label>
+                <select
+                  id="edit_ticket_assignee"
+                  value={editForm.assignee_id}
+                  onChange={(event) => setEditForm((prev) => ({ ...prev, assignee_id: event.target.value }))}
+                  disabled={savingTicket}
+                >
+                  <option value="">Unassigned</option>
+                  {members.map((member) => (
+                    <option key={member.id} value={member.id}>{member.full_name || member.username}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="edit_ticket_resolution">Resolution</label>
+                <textarea
+                  id="edit_ticket_resolution"
+                  rows={3}
+                  value={editForm.resolution}
+                  onChange={(event) => setEditForm((prev) => ({ ...prev, resolution: event.target.value }))}
+                  disabled={savingTicket}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Created</label>
+                <input value={new Date(selectedTicket.created_at).toLocaleString()} disabled />
+              </div>
+
+              <div className="form-group">
+                <label>Updated</label>
+                <input value={new Date(selectedTicket.updated_at).toLocaleString()} disabled />
+              </div>
+
+              {editError ? <div className="error-message">{editError}</div> : null}
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="ticket-complete-btn"
+                  onClick={() => handleCompleteTicket(selectedTicket.id)}
+                  disabled={completingId === selectedTicket.id || savingTicket}
+                >
+                  <CheckCircle2 size={14} strokeWidth={1.75} />
+                  {completingId === selectedTicket.id ? 'Closing...' : 'Mark Closed'}
+                </button>
+                <button type="button" className="btn-cancel" onClick={() => setSelectedTicket(null)} disabled={savingTicket}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-submit" disabled={savingTicket}>
+                  {savingTicket ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
 
       {isCreateOpen ? (
         <div className="modal-overlay" onClick={() => setIsCreateOpen(false)}>

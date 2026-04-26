@@ -9,8 +9,8 @@ from apps.workshops.models import Workbench, Workshop
 class Ticket(models.Model):
     class Status(models.TextChoices):
         OPEN = "OPEN", "Open"
+        ASSIGNED = "ASSIGNED"
         IN_PROGRESS = "IN_PROGRESS", "In Progress"
-        PENDING = "PENDING", "Pending"
         RESOLVED = "RESOLVED", "Resolved"
         CLOSED = "CLOSED", "Closed"
 

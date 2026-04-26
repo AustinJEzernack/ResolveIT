@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, ChevronDown, ChevronUp, Plus, Send, Ticket, UserPlus } from 'lucide-react'
+import { ArrowLeft, Plus, Send, Ticket, UserPlus } from 'lucide-react'
 import CreateWorkshopModal from '../components/CreateWorkshopModal'
 import apiClient from '@services/api'
 import {
@@ -61,7 +61,7 @@ const Workshop: React.FC = () => {
   const [workbenches, setWorkbenches] = useState<Workbench[]>([])
   const [channels, setChannels] = useState<Channel[]>([])
   const [tickets, setTickets] = useState<TicketItem[]>([])
-  const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null)
+  const [selectedTicket, setSelectedTicket] = useState<TicketItem | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [availableMembers, setAvailableMembers] = useState<WorkshopMember[]>([])
   const [activeWorkbenchId, setActiveWorkbenchId] = useState<string | null>(null)
@@ -97,6 +97,18 @@ const Workshop: React.FC = () => {
     urgency: 'MEDIUM',
     category: '',
     asset_id: '',
+    assignee_id: '',
+  })
+  const [savingTicket, setSavingTicket] = useState(false)
+  const [editTicketError, setEditTicketError] = useState('')
+  const [editTicketForm, setEditTicketForm] = useState({
+    title: '',
+    description: '',
+    status: 'OPEN',
+    urgency: 'MEDIUM',
+    category: '',
+    asset_id: '',
+    resolution: '',
     assignee_id: '',
   })
 
@@ -180,14 +192,12 @@ const Workshop: React.FC = () => {
   useEffect(() => {
     if (!activeWorkbenchId) {
       setTickets([])
-      setExpandedTicketId(null)
       setActiveChannelId(null)
       return
     }
 
     fetchTickets(activeWorkbenchId).then(setTickets).catch(() => {
       setTickets([])
-      setExpandedTicketId(null)
     })
 
     const workbench = workbenches.find((item) => item.id === activeWorkbenchId)
@@ -403,8 +413,89 @@ const Workshop: React.FC = () => {
     }
   }
 
+  const handleOpenTicket = async (ticket: TicketItem) => {
+    setEditTicketError('')
+    setSelectedTicket(ticket)
+    setEditTicketForm({
+      title: ticket.title || '',
+      description: ticket.description || '',
+      status: ticket.status || 'OPEN',
+      urgency: ticket.urgency || 'MEDIUM',
+      category: ticket.category || '',
+      asset_id: ticket.asset_id || '',
+      resolution: ticket.resolution || '',
+      assignee_id: ticket.assignee?.id || '',
+    })
+
+    if (workshopMembers.length === 0) {
+      setWorkshopMembersLoading(true)
+      try {
+        const res = await apiClient.get('/workshops/me/members/')
+        setWorkshopMembers(unwrapListPayload<WorkshopMember>(res.data))
+      } catch {
+        // leave empty
+      } finally {
+        setWorkshopMembersLoading(false)
+      }
+    }
+  }
+
+  const handleSaveTicket = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!selectedTicket || savingTicket) return
+
+    if (
+      (editTicketForm.status === 'RESOLVED' || editTicketForm.status === 'CLOSED') &&
+      !editTicketForm.resolution.trim()
+    ) {
+      setEditTicketError('Resolution is required when status is RESOLVED or CLOSED')
+      return
+    }
+
+    setSavingTicket(true)
+    setEditTicketError('')
+    try {
+      const response = await apiClient.patch(`/tickets/${selectedTicket.id}/`, {
+        title: editTicketForm.title.trim(),
+        description: editTicketForm.description.trim(),
+        status: editTicketForm.status,
+        urgency: editTicketForm.urgency,
+        category: editTicketForm.category.trim(),
+        asset_id: editTicketForm.asset_id.trim(),
+        resolution: editTicketForm.resolution.trim(),
+        assignee_id: editTicketForm.assignee_id || null,
+      })
+
+      const patchedTicket = (response.data?.data?.ticket || response.data?.ticket || response.data) as TicketItem
+      const ticketId = patchedTicket?.id || selectedTicket.id
+      const detailResponse = await apiClient.get(`/tickets/${ticketId}/`)
+      const persistedTicket = detailResponse.data as TicketItem
+
+      if (persistedTicket?.id) {
+        setTickets((prev) => prev.map((ticket) => (ticket.id === persistedTicket.id ? persistedTicket : ticket)))
+        setSelectedTicket(null)
+      }
+    } catch (err: any) {
+      const data = err.response?.data
+      setEditTicketError(
+        data?.detail ||
+        data?.message ||
+        data?.title?.[0] ||
+        data?.description?.[0] ||
+        data?.status?.[0] ||
+        data?.urgency?.[0] ||
+        data?.category?.[0] ||
+        data?.asset_id?.[0] ||
+        data?.assignee_id?.[0] ||
+        data?.resolution?.[0] ||
+        'Failed to update ticket'
+      )
+    } finally {
+      setSavingTicket(false)
+    }
+  }
+
   const activeWorkbench = workbenches.find((workbench) => workbench.id === activeWorkbenchId)
-  const canCreateWorkshop = !workshop
   const canCreateWorkbenches = Boolean(workshop && currentRole === 'OWNER')
   const canInviteMembers = Boolean(workshop && currentRole === 'OWNER')
   const filteredMembers = availableMembers.filter((member) => {
@@ -452,15 +543,6 @@ const Workshop: React.FC = () => {
             >
               <UserPlus size={14} strokeWidth={1.75} />
               Invite Member
-            </button>
-            <button
-              className="workshop-action-btn workshop-action-btn-primary"
-              onClick={() => setIsCreateOpen(true)}
-              disabled={!canCreateWorkshop}
-              title={canCreateWorkshop ? 'Create a workshop' : 'You already belong to a workshop'}
-            >
-              <Plus size={14} strokeWidth={1.75} />
-              Create Workshop
             </button>
             <span className="logo-link">ResolveIT</span>
           </div>
@@ -515,15 +597,14 @@ const Workshop: React.FC = () => {
                   </p>
                 ) : (
                   tickets.map((ticket) => {
-                    const expanded = expandedTicketId === ticket.id
                     const assigneeLabel = ticket.assignee?.full_name || ticket.assignee?.email || 'Unassigned'
 
                     return (
-                      <div key={ticket.id} className={`ticket-card-inline ${expanded ? 'expanded' : ''}`}>
+                      <div key={ticket.id} className="ticket-card-inline">
                         <button
                           type="button"
                           className="ticket-row"
-                          onClick={() => setExpandedTicketId(expanded ? null : ticket.id)}
+                          onClick={() => void handleOpenTicket(ticket)}
                         >
                           <span className="ticket-id">{String(ticket.id).slice(0, 8)}</span>
                           <span className="ticket-title">{ticket.title}</span>
@@ -531,24 +612,7 @@ const Workshop: React.FC = () => {
                           <span className={`ticket-status ${ticket.status.toLowerCase().replace('_', '-')}`}>
                             {ticket.status.replace('_', ' ').toLowerCase()}
                           </span>
-                          <span className="ticket-expand-icon">
-                            {expanded ? <ChevronUp size={15} strokeWidth={1.75} /> : <ChevronDown size={15} strokeWidth={1.75} />}
-                          </span>
                         </button>
-
-                        {expanded ? (
-                          <div className="ticket-inline-details">
-                            <p><strong>Description:</strong> {ticket.description || '—'}</p>
-                            <p><strong>Category:</strong> {ticket.category || '—'}</p>
-                            <p><strong>Urgency:</strong> {ticket.urgency}</p>
-                            <p><strong>Asset ID:</strong> {ticket.asset_id || '—'}</p>
-                            <p><strong>Requestor:</strong> {ticket.requestor?.full_name || ticket.requestor?.email || '—'}</p>
-                            <p><strong>Assignee:</strong> {ticket.assignee?.full_name || ticket.assignee?.email || '—'}</p>
-                            <p><strong>Resolution:</strong> {ticket.resolution || '—'}</p>
-                            <p><strong>Created:</strong> {new Date(ticket.created_at).toLocaleString()}</p>
-                            <p><strong>Updated:</strong> {new Date(ticket.updated_at).toLocaleString()}</p>
-                          </div>
-                        ) : null}
                       </div>
                     )
                   })
@@ -774,6 +838,146 @@ const Workshop: React.FC = () => {
                 </button>
                 <button type="submit" className="btn-submit" disabled={creatingTicket}>
                   {creatingTicket ? 'Creating...' : 'Create Ticket'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {selectedTicket ? (
+        <div className="modal-overlay" onClick={() => setSelectedTicket(null)}>
+          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Edit Ticket</h2>
+              <button className="modal-close-btn" onClick={() => setSelectedTicket(null)} aria-label="Close">✕</button>
+            </div>
+
+            <form onSubmit={handleSaveTicket} className="workshop-form">
+              <div className="form-group">
+                <label htmlFor="workshop_edit_ticket_title">Title</label>
+                <input
+                  id="workshop_edit_ticket_title"
+                  value={editTicketForm.title}
+                  onChange={(event) => setEditTicketForm((prev) => ({ ...prev, title: event.target.value }))}
+                  required
+                  disabled={savingTicket}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="workshop_edit_ticket_description">Description</label>
+                <textarea
+                  id="workshop_edit_ticket_description"
+                  rows={3}
+                  value={editTicketForm.description}
+                  onChange={(event) => setEditTicketForm((prev) => ({ ...prev, description: event.target.value }))}
+                  required
+                  disabled={savingTicket}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="workshop_edit_ticket_status">Status</label>
+                <select
+                  id="workshop_edit_ticket_status"
+                  value={editTicketForm.status}
+                  onChange={(event) => setEditTicketForm((prev) => ({ ...prev, status: event.target.value }))}
+                  disabled={savingTicket}
+                >
+                  <option value="OPEN">OPEN</option>
+                  <option value="ASSIGNED">ASSIGNED</option>
+                  <option value="IN_PROGRESS">IN_PROGRESS</option>
+                  <option value="RESOLVED">RESOLVED</option>
+                  <option value="CLOSED">CLOSED</option>
+                </select>
+                <div style={{ marginTop: '6px', fontSize: '0.8rem', color: 'var(--fg-muted)' }}>
+                  {editTicketForm.status === 'CLOSED'
+                    ? 'Status: CLOSED (ticket is retained; it is not deleted).'
+                    : `Status: ${editTicketForm.status}`}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="workshop_edit_ticket_urgency">Urgency</label>
+                <select
+                  id="workshop_edit_ticket_urgency"
+                  value={editTicketForm.urgency}
+                  onChange={(event) => setEditTicketForm((prev) => ({ ...prev, urgency: event.target.value }))}
+                  disabled={savingTicket}
+                >
+                  <option value="LOW">LOW</option>
+                  <option value="MEDIUM">MEDIUM</option>
+                  <option value="HIGH">HIGH</option>
+                  <option value="CRITICAL">CRITICAL</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="workshop_edit_ticket_category">Category</label>
+                <input
+                  id="workshop_edit_ticket_category"
+                  value={editTicketForm.category}
+                  onChange={(event) => setEditTicketForm((prev) => ({ ...prev, category: event.target.value }))}
+                  required
+                  disabled={savingTicket}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="workshop_edit_ticket_asset_id">Asset ID</label>
+                <input
+                  id="workshop_edit_ticket_asset_id"
+                  value={editTicketForm.asset_id}
+                  onChange={(event) => setEditTicketForm((prev) => ({ ...prev, asset_id: event.target.value }))}
+                  disabled={savingTicket}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="workshop_edit_ticket_assignee">Assignee</label>
+                <select
+                  id="workshop_edit_ticket_assignee"
+                  value={editTicketForm.assignee_id}
+                  onChange={(event) => setEditTicketForm((prev) => ({ ...prev, assignee_id: event.target.value }))}
+                  disabled={savingTicket || workshopMembersLoading}
+                >
+                  <option value="">Unassigned</option>
+                  {workshopMembers.map((member) => (
+                    <option key={member.id} value={member.id}>{member.full_name || member.username}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="workshop_edit_ticket_resolution">Resolution</label>
+                <textarea
+                  id="workshop_edit_ticket_resolution"
+                  rows={3}
+                  value={editTicketForm.resolution}
+                  onChange={(event) => setEditTicketForm((prev) => ({ ...prev, resolution: event.target.value }))}
+                  disabled={savingTicket}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Created</label>
+                <input value={new Date(selectedTicket.created_at).toLocaleString()} disabled />
+              </div>
+
+              <div className="form-group">
+                <label>Updated</label>
+                <input value={new Date(selectedTicket.updated_at).toLocaleString()} disabled />
+              </div>
+
+              {editTicketError ? <div className="error-message">{editTicketError}</div> : null}
+
+              <div className="modal-actions">
+                <button type="button" className="btn-cancel" onClick={() => setSelectedTicket(null)} disabled={savingTicket}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-submit" disabled={savingTicket}>
+                  {savingTicket ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </form>

@@ -6,6 +6,20 @@ import { clearAuthTokens, getAccessToken, getRefreshToken, type AuthUser } from 
 import notificationService, { Notification } from '@services/notificationService'
 import '../styles/Dashboard.css'
 
+function unwrapListPayload<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[]
+  if (payload && typeof payload === 'object') {
+    const data = payload as { data?: unknown; results?: unknown }
+    if (Array.isArray(data.data)) return data.data as T[]
+    if (Array.isArray(data.results)) return data.results as T[]
+    if (data.data && typeof data.data === 'object') {
+      const nested = data.data as { results?: unknown }
+      if (Array.isArray(nested.results)) return nested.results as T[]
+    }
+  }
+  return []
+}
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate()
   const [user, setUser] = useState<AuthUser | null>(null)
@@ -55,11 +69,10 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (user) {
-      apiClient.get('/tickets/assigned/')
+      setTicketsLoading(true)
+      apiClient.get(`/tickets/?assignee=${user.id}&limit=100`)
         .then((response) => {
-          // Handle both list and paginated responses
-          const ticketData = Array.isArray(response.data) ? response.data : response.data.results || []
-          setTickets(ticketData)
+          setTickets(unwrapListPayload<any>(response.data))
           setTicketsLoading(false)
         })
         .catch((error) => {
@@ -274,7 +287,9 @@ const Dashboard: React.FC = () => {
                   <div key={ticket.id} className="ticket-item">
                     <div className="ticket-info">
                       <h3>{ticket.title}</h3>
-                      <p className="ticket-user">From: {ticket.requestor?.first_name} {ticket.requestor?.last_name}</p>
+                      <p className="ticket-user">Workshop: {workshops[0]?.name || '—'}</p>
+                      <p className="ticket-user">Last Updated: {new Date(ticket.updated_at).toLocaleDateString()}</p>
+                      <p className="ticket-user">Status: {ticket.status}</p>
                     </div>
                     <button 
                       className="ticket-details-btn"
@@ -311,8 +326,8 @@ const Dashboard: React.FC = () => {
                   </div>
                   <div className="detail-row">
                     <strong>Status:</strong>
-                    <p className={`status-badge status-${ticket.status?.toLowerCase()}`}>
-                      {ticket.status}
+                    <p className={`status-badge status-${selectedTicket.status?.toLowerCase()}`}>
+                      {selectedTicket.status}
                     </p>
                   </div>
                   <div className="detail-row">

@@ -99,6 +99,15 @@ class UpdateTicketSerializer(serializers.ModelSerializer):
             "category", "asset_id", "assignee_id", "resolution", "tags",
         ]
 
+    def validate(self, attrs):
+        status = attrs.get("status", getattr(self.instance, "status", None))
+        resolution = attrs.get("resolution", getattr(self.instance, "resolution", ""))
+        if status in (Ticket.Status.RESOLVED, Ticket.Status.CLOSED) and not str(resolution).strip():
+            raise serializers.ValidationError(
+                {"resolution": "Resolution is required when status is RESOLVED or CLOSED."}
+            )
+        return attrs
+
     def update(self, instance, validated_data):
         tags = validated_data.pop("tags", None)
 
