@@ -56,6 +56,10 @@ export interface TicketItem {
   updated_at: string
   requestor: ChatUser
   assignee: ChatUser | null
+  workbench?: {
+    id: string
+    name: string
+  }
 }
 
 function unwrapListPayload<T>(payload: any): T[] {

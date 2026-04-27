@@ -32,8 +32,27 @@ const Dashboard: React.FC = () => {
   const [ticketsLoading, setTicketsLoading] = useState(true)
   const [selectedTicket, setSelectedTicket] = useState<any | null>(null)
   const [showWorkshopModal, setShowWorkshopModal] = useState(false)
+  const [showJoinWorkshopModal, setShowJoinWorkshopModal] = useState(false)
   const [workshopFormData, setWorkshopFormData] = useState({ name: '', description: '' })
   const [creatingWorkshop, setCreatingWorkshop] = useState(false)
+  const [joinWorkshopId, setJoinWorkshopId] = useState('')
+  const [joiningWorkshop, setJoiningWorkshop] = useState(false)
+  const [joinWorkshopError, setJoinWorkshopError] = useState('')
+  const [joinWorkshopSuccess, setJoinWorkshopSuccess] = useState('')
+
+  const refreshWorkshopList = async () => {
+    try {
+      const response = await apiClient.get('/workshops/me/')
+      setWorkshops(response.data ? [response.data] : [])
+    } catch (error: any) {
+      if (error.response?.status !== 404) {
+        console.error('Failed to load workshops:', error)
+      }
+      setWorkshops([])
+    } finally {
+      setWorkshopsLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (!getAccessToken()) {
@@ -51,19 +70,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (user) {
-      apiClient.get('/workshops/me/')
-        .then((response) => {
-          setWorkshops(response.data ? [response.data] : [])
-          setWorkshopsLoading(false)
-        })
-        .catch((error) => {
-          // 404 means the user has no workshop yet — that's a normal state
-          if (error.response?.status !== 404) {
-            console.error('Failed to load workshops:', error)
-          }
-          setWorkshops([])
-          setWorkshopsLoading(false)
-        })
+      void refreshWorkshopList()
     }
   }, [user])
 
@@ -128,6 +135,36 @@ const Dashboard: React.FC = () => {
       alert('Failed to create workshop')
     } finally {
       setCreatingWorkshop(false)
+    }
+  }
+
+  const handleJoinWorkshop = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!joinWorkshopId.trim()) {
+      setJoinWorkshopError('Workshop ID is required')
+      setJoinWorkshopSuccess('')
+      return
+    }
+
+    setJoiningWorkshop(true)
+    setJoinWorkshopError('')
+    setJoinWorkshopSuccess('')
+    try {
+      await apiClient.post('/workshops/join/', {
+        workshop_id: joinWorkshopId.trim(),
+      })
+      setJoinWorkshopSuccess('Joined workshop successfully')
+      setJoinWorkshopId('')
+      await refreshWorkshopList()
+      setShowJoinWorkshopModal(false)
+    } catch (error: any) {
+      const message =
+        error.response?.data?.message ||
+        error.response?.data?.detail ||
+        'Failed to join workshop'
+      setJoinWorkshopError(message)
+    } finally {
+      setJoiningWorkshop(false)
     }
   }
 
@@ -251,6 +288,18 @@ const Dashboard: React.FC = () => {
                   Create Workshop
                 </button>
               )}
+              {user?.role?.toLowerCase() === 'technician' && (
+                <button
+                  className="create-workshop-btn"
+                  onClick={() => {
+                    setJoinWorkshopError('')
+                    setJoinWorkshopSuccess('')
+                    setShowJoinWorkshopModal(true)
+                  }}
+                >
+                  Join Workshop
+                </button>
+              )}
             </div>
             {workshopsLoading ? (
               <p>Loading workshops...</p>
@@ -263,7 +312,7 @@ const Dashboard: React.FC = () => {
                     <div className="workshop-info">
                       <h3>{workshop.name}</h3>
                     </div>
-                    <button 
+                    <button
                       className="workshop-btn"
                       onClick={() => navigate('/workshop')}
                     >
@@ -422,6 +471,56 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
           )}
+
+          {showJoinWorkshopModal && (
+            <div className="workshop-modal-overlay" onClick={() => setShowJoinWorkshopModal(false)}>
+              <div className="workshop-modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="workshop-modal-header">
+                  <h2>Join Workshop</h2>
+                  <button
+                    className="workshop-modal-close"
+                    onClick={() => setShowJoinWorkshopModal(false)}
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <form onSubmit={handleJoinWorkshop}>
+                  <div className="form-group">
+                    <label htmlFor="workshop-id">Workshop ID</label>
+                    <input
+                      id="workshop-id"
+                      type="text"
+                      placeholder="Enter workshop ID"
+                      value={joinWorkshopId}
+                      onChange={(e) => setJoinWorkshopId(e.target.value)}
+                      disabled={joiningWorkshop}
+                      required
+                    />
+                  </div>
+                  {joinWorkshopError ? <p className="workshop-feedback-error">{joinWorkshopError}</p> : null}
+                  {joinWorkshopSuccess ? <p className="workshop-feedback-success">{joinWorkshopSuccess}</p> : null}
+                  <div className="workshop-modal-footer">
+                    <button
+                      type="button"
+                      className="modal-btn-cancel"
+                      onClick={() => setShowJoinWorkshopModal(false)}
+                      disabled={joiningWorkshop}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="modal-btn-create"
+                      disabled={joiningWorkshop}
+                    >
+                      {joiningWorkshop ? 'Joining...' : 'Join Workshop'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
         </main>
       </div>
     </div>

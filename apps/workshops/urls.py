@@ -1,9 +1,11 @@
 from django.urls import path
 from . import views
+from apps.tickets.views import PublicTicketIntakeView
 
 # Mounted at /api/workshops/
 urlpatterns = [
     path("create/", views.WorkshopCreateView.as_view(), name="workshop-create"),
+    path("join/", views.JoinWorkshopView.as_view(), name="workshop-join"),
     path("me/", views.WorkshopDetailView.as_view(), name="workshop-detail"),
     path(
         "available-members/",
@@ -20,5 +22,10 @@ urlpatterns = [
         "me/members/<uuid:user_id>/",
         views.DeactivateMemberView.as_view(),
         name="workshop-member-deactivate",
+    ),
+    path(
+        "<slug:slug>/intake/",
+        PublicTicketIntakeView.as_view(),
+        name="workshop-public-intake",
     ),
 ]

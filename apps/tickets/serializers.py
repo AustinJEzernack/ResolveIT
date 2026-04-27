@@ -91,13 +91,22 @@ class UpdateTicketSerializer(serializers.ModelSerializer):
         write_only=True,
     )
     assignee_id = serializers.UUIDField(required=False, allow_null=True, write_only=True)
+    workbench_id = serializers.UUIDField(required=False, write_only=True)
 
     class Meta:
         model = Ticket
         fields = [
             "title", "description", "status", "urgency",
-            "category", "asset_id", "assignee_id", "resolution", "tags",
+            "category", "asset_id", "assignee_id", "workbench_id", "resolution", "tags",
         ]
+
+    def validate_workbench_id(self, value):
+        from apps.workshops.models import Workbench
+
+        workshop = self.context["request"].user.workshop
+        if not Workbench.objects.filter(id=value, workshop=workshop, is_active=True).exists():
+            raise serializers.ValidationError("Workbench not found in your workshop.")
+        return value
 
     def validate(self, attrs):
         status = attrs.get("status", getattr(self.instance, "status", None))
@@ -127,3 +136,22 @@ class UpdateTicketSerializer(serializers.ModelSerializer):
             )
 
         return instance
+
+
+class PublicTicketIntakeSerializer(serializers.ModelSerializer):
+    """Serializer for unauthenticated public ticket submissions."""
+
+    class Meta:
+        model = Ticket
+        fields = [
+            "title", "description", "submitter_name", "submitter_email",
+        ]
+        extra_kwargs = {
+            "submitter_name": {"required": True},
+            "submitter_email": {"required": True},
+        }
+
+    def create(self, validated_data):
+        # Public form intentionally collects a smaller field set.
+        validated_data.setdefault("category", "General")
+        return Ticket.objects.create(**validated_data)
