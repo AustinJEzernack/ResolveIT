@@ -1,6 +1,8 @@
 import logging
 
+from django.template.response import TemplateResponse
 from rest_framework import generics, permissions, status
+from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 
 from apps.core.audit import log_action
@@ -12,6 +14,7 @@ from .filters import TicketFilter
 from .models import Ticket, WorkLog
 from .serializers import (
     CreateTicketSerializer,
+    PublicTicketIntakeSerializer,
     TicketSerializer,
     UpdateTicketSerializer,
     WorkLogSerializer,
@@ -201,3 +204,106 @@ class WorkLogListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         ticket = self._get_ticket()
         serializer.save(ticket=ticket, user=self.request.user)
+
+
+class PublicTicketIntakeView(generics.CreateAPIView):
+    """POST /api/workshops/<slug>/intake/ — unauthenticated public ticket submission."""
+
+    serializer_class = PublicTicketIntakeSerializer
+    permission_classes = [permissions.AllowAny]
+    renderer_classes = [JSONRenderer]
+
+    def _get_workshop(self):
+        from apps.workshops.models import Workshop
+
+        slug = self.kwargs["slug"]
+        return Workshop.objects.filter(slug=slug, is_active=True).first()
+
+    def _wants_html(self, request):
+        accept = (request.headers.get("Accept") or "").lower()
+        return "text/html" in accept
+
+    def get(self, request, *args, **kwargs):
+        workshop = self._get_workshop()
+        if workshop is None:
+            if self._wants_html(request):
+                return TemplateResponse(
+                    request,
+                    "tickets/public_ticket_intake.html",
+                    {
+                        "workshop": None,
+                        "workshop_slug": self.kwargs.get("slug", ""),
+                        "error_message": "Workshop not found.",
+                    },
+                    status=404,
+                )
+            return Response(
+                {"status": "error", "message": "Workshop not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if self._wants_html(request):
+            return TemplateResponse(
+                request,
+                "tickets/public_ticket_intake.html",
+                {
+                    "workshop": workshop,
+                    "workshop_slug": workshop.slug,
+                },
+                status=200,
+            )
+
+        return Response(
+            {
+                "status": "success",
+                "message": "Public intake endpoint is available. Submit ticket data with POST.",
+                "data": {
+                    "workshop": {"name": workshop.name, "slug": workshop.slug},
+                    "method": "POST",
+                    "required_fields": [
+                        "title",
+                        "description",
+                        "submitter_name",
+                        "submitter_email",
+                    ],
+                    "optional_fields": [],
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def create(self, request, *args, **kwargs):
+        from apps.workshops.models import Workbench, Workshop
+
+        workshop = self._get_workshop()
+        if workshop is None:
+            return Response(
+                {"status": "error", "message": "Workshop not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        workbench = (
+            Workbench.objects.filter(workshop=workshop, is_active=True)
+            .order_by("name")
+            .first()
+        )
+        if workbench is None:
+            return Response(
+                {"status": "error", "message": "No active workbench available."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        ticket = serializer.save(
+            workshop=workshop,
+            workbench=workbench,
+            requestor=None,
+        )
+
+        notify_ticket_created(ticket, workshop)
+
+        return Response(
+            {"status": "success", "data": {"ticket_id": str(ticket.id)}},
+            status=status.HTTP_201_CREATED,
+        )

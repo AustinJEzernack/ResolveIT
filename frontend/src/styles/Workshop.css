@@ -550,6 +550,28 @@
   border-radius: var(--radius-md);
 }
 
+.workshop-settings-content {
+  padding-top: 1rem;
+}
+
+.workshop-settings-list {
+  margin: 0;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-app);
+  color: var(--fg-muted);
+  display: grid;
+  gap: 0.35rem;
+  list-style-position: inside;
+}
+
+.workshop-settings-url-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.6rem;
+}
+
 @media (max-width: 880px) {
   .workshop-navbar {
     height: auto;

@@ -925,6 +925,26 @@
   cursor: not-allowed;
 }
 
+.workshop-feedback-error,
+.workshop-feedback-success {
+  margin: 0 1.5rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+}
+
+.workshop-feedback-error {
+  background-color: rgba(224, 49, 49, 0.12);
+  border: 1px solid rgba(224, 49, 49, 0.35);
+  color: #ffc9c9;
+}
+
+.workshop-feedback-success {
+  background-color: rgba(46, 160, 67, 0.12);
+  border: 1px solid rgba(46, 160, 67, 0.35);
+  color: #b2f2bb;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .activity-sidebar {

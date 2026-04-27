@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.http import Http404
 from django.utils.text import slugify
+from uuid import UUID
 
 from apps.accounts.models import User
 from apps.accounts.serializers import PublicUserSerializer
@@ -160,6 +161,62 @@ class DeactivateMemberView(APIView):
         user.is_active = False
         user.save(update_fields=["is_active"])
         return Response({"status": "success", "message": "Member deactivated"})
+
+
+class JoinWorkshopView(APIView):
+    """POST /api/workshops/join/ — technician joins workshop by workshop id."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if request.user.role != User.Role.TECHNICIAN:
+            return Response(
+                {"status": "error", "message": "Only technicians can join by workshop ID"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        workshop_id = request.data.get("workshop_id")
+        try:
+            workshop_uuid = UUID(str(workshop_id))
+        except (TypeError, ValueError):
+            return Response(
+                {"status": "error", "message": "Invalid workshop ID"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            workshop = Workshop.objects.get(id=workshop_uuid, is_active=True)
+        except Workshop.DoesNotExist:
+            return Response(
+                {"status": "error", "message": "Workshop not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if request.user.workshop_id == workshop.id:
+            return Response(
+                {"status": "error", "message": "You are already in this workshop"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = request.user
+        user.workshop = workshop
+        user.role = User.Role.TECHNICIAN
+        user.save(update_fields=["workshop", "role"])
+
+        channels = Channel.objects.filter(workshop=workshop)
+        ChannelMember.objects.bulk_create(
+            [ChannelMember(channel=channel, user=user, is_admin=False) for channel in channels],
+            ignore_conflicts=True,
+        )
+
+        return Response(
+            {
+                "status": "success",
+                "message": "Joined workshop successfully",
+                "data": {"workshop": WorkshopSerializer(workshop).data},
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 # ─────────────────────────────────────────────

@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Send, Ticket, UserPlus } from 'lucide-react'
+import { ArrowLeft, Plus, Send, Settings, Ticket, UserPlus } from 'lucide-react'
 import CreateWorkshopModal from '../components/CreateWorkshopModal'
 import apiClient from '@services/api'
 import {
@@ -76,6 +76,7 @@ const Workshop: React.FC = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isCreateWorkbenchOpen, setIsCreateWorkbenchOpen] = useState(false)
   const [isInviteOpen, setIsInviteOpen] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [inviteError, setInviteError] = useState('')
   const [inviteSuccess, setInviteSuccess] = useState('')
   const [addingMemberId, setAddingMemberId] = useState<string | null>(null)
@@ -108,6 +109,7 @@ const Workshop: React.FC = () => {
     urgency: 'MEDIUM',
     category: '',
     asset_id: '',
+    workbench_id: '',
     resolution: '',
     assignee_id: '',
   })
@@ -378,6 +380,21 @@ const Workshop: React.FC = () => {
     }
   }
 
+  const handleOpenSettings = async () => {
+    setIsSettingsOpen(true)
+    if (workshopMembers.length > 0) return
+
+    setWorkshopMembersLoading(true)
+    try {
+      const res = await apiClient.get('/workshops/me/members/')
+      setWorkshopMembers(unwrapListPayload<WorkshopMember>(res.data))
+    } catch {
+      setWorkshopMembers([])
+    } finally {
+      setWorkshopMembersLoading(false)
+    }
+  }
+
   const handleCreateTicket = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!activeWorkbenchId || creatingTicket) return
@@ -423,6 +440,7 @@ const Workshop: React.FC = () => {
       urgency: ticket.urgency || 'MEDIUM',
       category: ticket.category || '',
       asset_id: ticket.asset_id || '',
+      workbench_id: ticket.workbench?.id || activeWorkbenchId || '',
       resolution: ticket.resolution || '',
       assignee_id: ticket.assignee?.id || '',
     })
@@ -462,6 +480,7 @@ const Workshop: React.FC = () => {
         urgency: editTicketForm.urgency,
         category: editTicketForm.category.trim(),
         asset_id: editTicketForm.asset_id.trim(),
+        workbench_id: editTicketForm.workbench_id || undefined,
         resolution: editTicketForm.resolution.trim(),
         assignee_id: editTicketForm.assignee_id || null,
       })
@@ -472,7 +491,12 @@ const Workshop: React.FC = () => {
       const persistedTicket = detailResponse.data as TicketItem
 
       if (persistedTicket?.id) {
-        setTickets((prev) => prev.map((ticket) => (ticket.id === persistedTicket.id ? persistedTicket : ticket)))
+        const nextWorkbenchId = persistedTicket.workbench?.id || editTicketForm.workbench_id
+        if (nextWorkbenchId && activeWorkbenchId && nextWorkbenchId !== activeWorkbenchId) {
+          setTickets((prev) => prev.filter((ticket) => ticket.id !== persistedTicket.id))
+        } else {
+          setTickets((prev) => prev.map((ticket) => (ticket.id === persistedTicket.id ? persistedTicket : ticket)))
+        }
         setSelectedTicket(null)
       }
     } catch (err: any) {
@@ -486,6 +510,7 @@ const Workshop: React.FC = () => {
         data?.urgency?.[0] ||
         data?.category?.[0] ||
         data?.asset_id?.[0] ||
+        data?.workbench_id?.[0] ||
         data?.assignee_id?.[0] ||
         data?.resolution?.[0] ||
         'Failed to update ticket'
@@ -498,6 +523,22 @@ const Workshop: React.FC = () => {
   const activeWorkbench = workbenches.find((workbench) => workbench.id === activeWorkbenchId)
   const canCreateWorkbenches = Boolean(workshop && currentRole === 'OWNER')
   const canInviteMembers = Boolean(workshop && currentRole === 'OWNER')
+  const ownerMember = useMemo(
+    () => workshopMembers.find((member) => String(member.role).toUpperCase() === 'OWNER') ?? null,
+    [workshopMembers]
+  )
+  const technicianMembers = useMemo(
+    () => workshopMembers.filter((member) => String(member.role).toUpperCase() === 'TECHNICIAN'),
+    [workshopMembers]
+  )
+  const publicIntakeUrl = useMemo(() => {
+    const slug = workshop?.slug
+    if (!slug) return ''
+
+    const configuredBase = String(apiClient.defaults.baseURL ?? '').replace(/\/$/, '')
+    if (!configuredBase) return `/api/workshops/${slug}/intake/`
+    return `${configuredBase}/workshops/${slug}/intake/`
+  }, [workshop])
   const filteredMembers = availableMembers.filter((member) => {
     const query = memberSearch.trim().toLowerCase()
     if (!query) return true
@@ -543,6 +584,15 @@ const Workshop: React.FC = () => {
             >
               <UserPlus size={14} strokeWidth={1.75} />
               Invite Member
+            </button>
+            <button
+              className="workshop-action-btn"
+              onClick={() => void handleOpenSettings()}
+              disabled={!workshop}
+              title={workshop ? 'View workshop settings' : 'No workshop available'}
+            >
+              <Settings size={14} strokeWidth={1.75} />
+              Settings
             </button>
             <span className="logo-link">ResolveIT</span>
           </div>
@@ -935,6 +985,21 @@ const Workshop: React.FC = () => {
               </div>
 
               <div className="form-group">
+                <label htmlFor="workshop_edit_ticket_workbench">Workbench</label>
+                <select
+                  id="workshop_edit_ticket_workbench"
+                  value={editTicketForm.workbench_id}
+                  onChange={(event) => setEditTicketForm((prev) => ({ ...prev, workbench_id: event.target.value }))}
+                  disabled={savingTicket}
+                >
+                  <option value="">Select a workbench</option>
+                  {workbenches.map((workbench) => (
+                    <option key={workbench.id} value={workbench.id}>{workbench.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
                 <label htmlFor="workshop_edit_ticket_assignee">Assignee</label>
                 <select
                   id="workshop_edit_ticket_assignee"
@@ -1040,6 +1105,93 @@ const Workshop: React.FC = () => {
                     </button>
                   ))
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isSettingsOpen && workshop ? (
+        <div className="modal-overlay" onClick={() => setIsSettingsOpen(false)}>
+          <div className="modal-content" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Workshop Settings</h2>
+              <button
+                className="modal-close-btn"
+                onClick={() => setIsSettingsOpen(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="workshop-form workshop-settings-content">
+              <div className="form-group">
+                <label>Name</label>
+                <input value={workshop.name} disabled />
+              </div>
+
+              <div className="form-group">
+                <label>Workshop ID</label>
+                <div className="workshop-settings-url-row">
+                  <input value={workshop.id} disabled />
+                  <button
+                    type="button"
+                    className="btn-submit"
+                    onClick={() => {
+                      if (!workshop.id) return
+                      void navigator.clipboard.writeText(workshop.id)
+                    }}
+                  >
+                    Copy ID
+                  </button>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Owner</label>
+                <input
+                  value={ownerMember ? `${ownerMember.first_name} ${ownerMember.last_name} (${ownerMember.email})` : 'Not available'}
+                  disabled
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Technicians</label>
+                {workshopMembersLoading ? (
+                  <p className="workshop-member-empty">Loading technicians...</p>
+                ) : technicianMembers.length === 0 ? (
+                  <p className="workshop-member-empty">No technicians found.</p>
+                ) : (
+                  <ul className="workshop-settings-list">
+                    {technicianMembers.map((member) => (
+                      <li key={member.id}>{member.first_name} {member.last_name} ({member.email})</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label>Public Ticket Submission URL</label>
+                <div className="workshop-settings-url-row">
+                  <input value={publicIntakeUrl} disabled />
+                  <button
+                    type="button"
+                    className="btn-submit"
+                    onClick={() => {
+                      if (!publicIntakeUrl) return
+                      void navigator.clipboard.writeText(publicIntakeUrl)
+                    }}
+                  >
+                    Copy URL
+                  </button>
+                </div>
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" className="btn-cancel" onClick={() => setIsSettingsOpen(false)}>
+                  Close
+                </button>
               </div>
             </div>
           </div>

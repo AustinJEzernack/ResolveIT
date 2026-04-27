@@ -42,10 +42,16 @@ class Ticket(models.Model):
     workbench = models.ForeignKey(
         Workbench, on_delete=models.PROTECT, related_name="tickets"
     )
+    # Public intake fields (null for internal tickets, populated for public submissions)
+    submitter_name = models.CharField(max_length=100, blank=True)
+    submitter_email = models.EmailField(blank=True)
+
     requestor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name="created_tickets",
+        null=True,
+        blank=True,
     )
     assignee = models.ForeignKey(
         settings.AUTH_USER_MODEL,
