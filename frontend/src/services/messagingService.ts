@@ -11,7 +11,7 @@ export interface Workbench {
 export interface Channel {
   id: string
   name: string
-  type: 'DIRECT' | 'PRIVATE' | 'PUBLIC'
+  type: 'DIRECT' | 'PRIVATE' | 'PUBLIC' | 'VOICE'
   is_encrypted: boolean
   updated_at: string
   last_message: {

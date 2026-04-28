@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Send, Settings, Ticket, UserPlus } from 'lucide-react'
+import { ArrowLeft, Phone, Plus, Send, Settings, Ticket, UserPlus } from 'lucide-react'
+import CallUI from '../components/CallUI'
 import CreateWorkshopModal from '../components/CreateWorkshopModal'
+import { useWebRTC, type CallSignalData } from '../hooks/useWebRTC'
 import apiClient from '@services/api'
 import {
   connectWebSocket,
@@ -119,6 +121,10 @@ const Workshop: React.FC = () => {
   const activeChannelIdRef = useRef<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
+  const { callState, startCall, answerCall, rejectCall, endCall, toggleMute, handleCallSignal, remoteAudioRef } =
+    useWebRTC(wsRef)
+  const [showCallPicker, setShowCallPicker] = useState(false)
+
   const loadWorkbenchState = async () => {
     try {
       const [nextWorkbenches, nextChannels] = await Promise.all([
@@ -182,6 +188,8 @@ const Workshop: React.FC = () => {
             prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]
           )
         }
+      } else if (event.type === 'call.signal') {
+        handleCallSignal(event.data as CallSignalData)
       }
     })
     wsRef.current = ws
@@ -330,6 +338,25 @@ const Workshop: React.FC = () => {
       setInviteError(message)
     } finally {
       setAddingMemberId(null)
+    }
+  }
+
+  const handleOpenCallPicker = async () => {
+    if (showCallPicker) {
+      setShowCallPicker(false)
+      return
+    }
+    setShowCallPicker(true)
+    if (workshopMembers.length === 0) {
+      setWorkshopMembersLoading(true)
+      try {
+        const res = await apiClient.get('/workshops/me/members/')
+        setWorkshopMembers(unwrapListPayload<WorkshopMember>(res.data))
+      } catch {
+        // leave empty
+      } finally {
+        setWorkshopMembersLoading(false)
+      }
     }
   }
 
@@ -539,6 +566,12 @@ const Workshop: React.FC = () => {
     if (!configuredBase) return `/api/workshops/${slug}/intake/`
     return `${configuredBase}/workshops/${slug}/intake/`
   }, [workshop])
+  const remoteUserName = useMemo(() => {
+    if (!callState.remoteUserId) return 'Unknown'
+    const m = workshopMembers.find((member) => member.id === callState.remoteUserId)
+    return m?.full_name || m?.email || 'Unknown'
+  }, [callState.remoteUserId, workshopMembers])
+
   const filteredMembers = availableMembers.filter((member) => {
     const query = memberSearch.trim().toLowerCase()
     if (!query) return true
@@ -700,6 +733,40 @@ const Workshop: React.FC = () => {
                         onKeyDown={handleKeyDown}
                         disabled={sending}
                       />
+                      <div className="chat-call-picker-wrapper">
+                        {showCallPicker && callState.status === 'idle' ? (
+                          <div className="chat-call-picker">
+                            {workshopMembersLoading ? (
+                              <p className="chat-call-picker-empty">Loading…</p>
+                            ) : workshopMembers.filter((m) => m.id !== currentUserId).length === 0 ? (
+                              <p className="chat-call-picker-empty">No other members</p>
+                            ) : (
+                              workshopMembers
+                                .filter((m) => m.id !== currentUserId)
+                                .map((member) => (
+                                  <button
+                                    key={member.id}
+                                    className="chat-call-picker-item"
+                                    onClick={() => {
+                                      setShowCallPicker(false)
+                                      void startCall(member.id)
+                                    }}
+                                  >
+                                    {member.full_name || member.email}
+                                  </button>
+                                ))
+                            )}
+                          </div>
+                        ) : null}
+                        <button
+                          className="chat-call-btn"
+                          onClick={() => void handleOpenCallPicker()}
+                          disabled={callState.status !== 'idle'}
+                          title="Start voice call"
+                        >
+                          <Phone size={14} strokeWidth={1.75} />
+                        </button>
+                      </div>
                       <button className="chat-send-btn" onClick={handleSend} disabled={sending}>
                         <Send size={14} strokeWidth={1.75} />
                       </button>
@@ -1110,6 +1177,16 @@ const Workshop: React.FC = () => {
           </div>
         </div>
       ) : null}
+
+      <CallUI
+        callState={callState}
+        remoteUserName={remoteUserName}
+        onAnswer={() => void answerCall()}
+        onReject={rejectCall}
+        onEnd={endCall}
+        onToggleMute={toggleMute}
+        remoteAudioRef={remoteAudioRef}
+      />
 
       {isSettingsOpen && workshop ? (
         <div className="modal-overlay" onClick={() => setIsSettingsOpen(false)}>

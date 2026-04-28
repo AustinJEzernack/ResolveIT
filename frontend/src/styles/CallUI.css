@@ -1,0 +1,136 @@
+/* ── Fixed call panel (bottom-right corner) ── */
+.call-overlay {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+}
+
+.call-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 220px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.call-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent, #3b82f6);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.call-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--fg-default);
+}
+
+.call-status {
+  font-size: 0.78rem;
+  color: var(--fg-muted);
+}
+
+.call-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.call-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transition: opacity 0.15s;
+}
+
+.call-btn:hover {
+  opacity: 0.85;
+}
+
+.call-btn--accept { background: #16a34a; }
+.call-btn--end    { background: #dc2626; }
+.call-btn--mute   { background: #475569; }
+.call-btn--muted  { background: #d97706; }
+
+/* ── Call picker dropdown (above phone button) ── */
+.chat-call-picker-wrapper {
+  position: relative;
+}
+
+.chat-call-picker {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  min-width: 180px;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  z-index: 100;
+}
+
+.chat-call-picker-empty {
+  padding: 10px 12px;
+  font-size: 0.8rem;
+  color: var(--fg-muted);
+}
+
+.chat-call-picker-item {
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: var(--fg-default);
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-call-picker-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ── Phone button in chat input row ── */
+.chat-call-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: none;
+  background: var(--accent, #3b82f6);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0.85;
+  transition: opacity 0.15s;
+}
+
+.chat-call-btn:hover  { opacity: 1; }
+.chat-call-btn:disabled { opacity: 0.35; cursor: not-allowed; }
