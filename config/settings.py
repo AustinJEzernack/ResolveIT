@@ -1,23 +1,23 @@
 """
 Django settings for ResolveIT — IT Ticket Management System.
-All secrets are loaded from environment via django-environ.
+All secrets are loaded from environment via python-dotenv.
 """
+import os
 from datetime import timedelta
 from pathlib import Path
 
-import environ
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-env = environ.Env(DEBUG=(bool, False))
-environ.Env.read_env(BASE_DIR / ".env")
+load_dotenv(BASE_DIR / ".env")
 
 # ─────────────────────────────────────────────
 # Core
 # ─────────────────────────────────────────────
-SECRET_KEY = env("SECRET_KEY")
-DEBUG = env("DEBUG")
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost"])
+SECRET_KEY = os.environ["SECRET_KEY"]
+DEBUG = os.environ.get("DEBUG", "False") == "True"
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost").split(",")
 
 AUTH_USER_MODEL = "accounts.User"
 
@@ -80,7 +80,14 @@ TEMPLATES = [
 # Database
 # ─────────────────────────────────────────────
 DATABASES = {
-    "default": env.db("DATABASE_URL"),
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("DB_NAME", "resolveit"),
+        "USER": os.environ.get("DB_USER", ""),
+        "PASSWORD": os.environ.get("DB_PASSWORD", ""),
+        "HOST": os.environ.get("DB_HOST", "localhost"),
+        "PORT": os.environ.get("DB_PORT", "5432"),
+    }
 }
 
 # ─────────────────────────────────────────────
@@ -90,7 +97,7 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [env("REDIS_URL", default="redis://localhost:6379")],
+            "hosts": [os.environ.get("REDIS_URL", "redis://localhost:6379")],
         },
     },
 }
@@ -121,10 +128,10 @@ REST_FRAMEWORK = {
 # ─────────────────────────────────────────────
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(
-        minutes=env.int("JWT_ACCESS_TOKEN_LIFETIME_MINUTES", default=15)
+        minutes=int(os.environ.get("JWT_ACCESS_TOKEN_LIFETIME_MINUTES", "15"))
     ),
     "REFRESH_TOKEN_LIFETIME": timedelta(
-        days=env.int("JWT_REFRESH_TOKEN_LIFETIME_DAYS", default=7)
+        days=int(os.environ.get("JWT_REFRESH_TOKEN_LIFETIME_DAYS", "7"))
     ),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
@@ -140,15 +147,15 @@ SIMPLE_JWT = {
 # ─────────────────────────────────────────────
 # CORS
 # ─────────────────────────────────────────────
-CORS_ALLOWED_ORIGINS = env.list(
-    "CORS_ALLOWED_ORIGINS", default=["http://localhost:5173"]
-)
+CORS_ALLOWED_ORIGINS = os.environ.get(
+    "CORS_ALLOWED_ORIGINS", "http://localhost:5173"
+).split(",")
 CORS_ALLOW_CREDENTIALS = True
 
 # ─────────────────────────────────────────────
 # Encryption
 # ─────────────────────────────────────────────
-MESSAGE_ENCRYPTION_KEY = env("MESSAGE_ENCRYPTION_KEY")
+MESSAGE_ENCRYPTION_KEY = os.environ["MESSAGE_ENCRYPTION_KEY"]
 
 # ─────────────────────────────────────────────
 # Static / i18n
