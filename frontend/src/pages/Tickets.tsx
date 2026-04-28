@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, CheckCircle2, Plus, Ticket } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Plus } from 'lucide-react'
 import apiClient from '@services/api'
 import { getAccessToken, type AuthUser } from '@services/auth'
 import '../styles/Tickets.css'

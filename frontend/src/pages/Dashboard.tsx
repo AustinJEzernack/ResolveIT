@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Check, Info, AlertTriangle, X, Ticket, MessageSquare, Users, Settings, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Check, Info, AlertTriangle, X, MessageSquare, Settings, ChevronLeft, ChevronRight } from 'lucide-react'
 import apiClient from '@services/api'
 import { clearAuthTokens, getAccessToken, getRefreshToken, type AuthUser } from '@services/auth'
 import notificationService, { Notification } from '@services/notificationService'
@@ -182,6 +182,7 @@ const Dashboard: React.FC = () => {
       document.addEventListener('mousedown', handleClickOutside)
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
+    return undefined
   }, [showWorkshopModal])
 
 
