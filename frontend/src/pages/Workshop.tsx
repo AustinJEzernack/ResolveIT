@@ -124,6 +124,7 @@ const Workshop: React.FC = () => {
   const { callState, startCall, answerCall, rejectCall, endCall, toggleMute, handleCallSignal, remoteAudioRef } =
     useWebRTC(wsRef)
   const [showCallPicker, setShowCallPicker] = useState(false)
+  const [copiedWorkshopId, setCopiedWorkshopId] = useState(false)
 
   const loadWorkbenchState = async () => {
     try {
@@ -1217,10 +1218,13 @@ const Workshop: React.FC = () => {
                     className="btn-submit"
                     onClick={() => {
                       if (!workshop.id) return
-                      void navigator.clipboard.writeText(workshop.id)
+                      void navigator.clipboard.writeText(workshop.id).then(() => {
+                        setCopiedWorkshopId(true)
+                        setTimeout(() => setCopiedWorkshopId(false), 1500)
+                      })
                     }}
                   >
-                    Copy ID
+                    {copiedWorkshopId ? 'Copied!' : 'Copy ID'}
                   </button>
                 </div>
               </div>
