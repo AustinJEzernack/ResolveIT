@@ -40,7 +40,7 @@ export async function createChannel(name, memberIds) {
     return res.data.data?.channel;
 }
 export function connectWebSocket(token, onMessage) {
-    const wsUrl = `ws://localhost:8000/ws/?token=${encodeURIComponent(token)}`;
+    const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws/?token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(wsUrl);
     ws.onmessage = (raw) => {
         try {

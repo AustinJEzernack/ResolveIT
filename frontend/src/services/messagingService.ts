@@ -109,7 +109,7 @@ export function connectWebSocket(
   token: string,
   onMessage: (event: { type: string; data: any }) => void
 ): WebSocket {
-  const wsUrl = `ws://localhost:8000/ws/?token=${encodeURIComponent(token)}`
+  const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws/?token=${encodeURIComponent(token)}`
   const ws = new WebSocket(wsUrl)
   ws.onmessage = (raw) => {
     try {
