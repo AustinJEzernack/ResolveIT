@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Headphones, Mic, MicOff, MonitorUp, PhoneOff, Phone, Plus, Send, Settings, Ticket, UserPlus, Volume2, VolumeX } from 'lucide-react'
+import { ArrowLeft, AtSign, Bell, Headphones, Mic, MicOff, MonitorUp, Paperclip, PhoneOff, Phone, Plus, Send, Settings, Smile, Ticket, UserPlus, Users, Volume2, VolumeX } from 'lucide-react'
 import CallUI from '../components/CallUI'
 import CreateWorkshopModal from '../components/CreateWorkshopModal'
 import { useWebRTC, type CallSignalData } from '../hooks/useWebRTC'
@@ -135,6 +135,8 @@ const Workshop: React.FC = () => {
   const [voicePreviewMuted, setVoicePreviewMuted] = useState(false)
   const [voicePreviewDeafened, setVoicePreviewDeafened] = useState(false)
   const [currentUserName, setCurrentUserName] = useState('')
+  const [sidebarSearch, setSidebarSearch] = useState('')
+  const [ticketFilter, setTicketFilter] = useState<'all' | 'mine' | 'open' | 'high'>('all')
 
   const loadWorkbenchState = async () => {
     try {
@@ -158,9 +160,10 @@ const Workshop: React.FC = () => {
   }
 
   const loadWorkshopMeta = async () => {
-    const [workshopResult, meResult] = await Promise.allSettled([
+    const [workshopResult, meResult, membersResult] = await Promise.allSettled([
       apiClient.get('/workshops/me/'),
       apiClient.get('/auth/me/'),
+      apiClient.get('/workshops/me/members/'),
     ])
 
     if (workshopResult.status === 'fulfilled') {
@@ -178,6 +181,10 @@ const Workshop: React.FC = () => {
       setCurrentRole('')
       setCurrentUserId('')
       setCurrentUserName('')
+    }
+
+    if (membersResult.status === 'fulfilled') {
+      setWorkshopMembers(unwrapListPayload<WorkshopMember>(membersResult.value.data))
     }
   }
 
@@ -628,6 +635,19 @@ const Workshop: React.FC = () => {
     return m?.full_name || m?.email || 'Unknown'
   }, [callState.remoteUserId, workshopMembers])
 
+  const filteredWorkbenches = useMemo(() => {
+    const q = sidebarSearch.trim().toLowerCase()
+    if (!q) return workbenches
+    return workbenches.filter((wb) => wb.name.toLowerCase().includes(q))
+  }, [workbenches, sidebarSearch])
+
+  const filteredTickets = useMemo(() => {
+    if (ticketFilter === 'mine') return tickets.filter((t) => t.assignee?.id === currentUserId)
+    if (ticketFilter === 'open') return tickets.filter((t) => t.status === 'OPEN')
+    if (ticketFilter === 'high') return tickets.filter((t) => t.urgency === 'HIGH' || t.urgency === 'CRITICAL')
+    return tickets
+  }, [tickets, ticketFilter, currentUserId])
+
   const filteredMembers = availableMembers.filter((member) => {
     const query = memberSearch.trim().toLowerCase()
     if (!query) return true
@@ -720,12 +740,22 @@ const Workshop: React.FC = () => {
           <div className="workshop-body">
             <aside className="workshop-sidebar">
               <div className="workshop-sidebar-header">Workbenches</div>
-              {workbenches.length === 0 ? (
+              <div className="workshop-sidebar-search">
+                <input
+                  type="search"
+                  placeholder="Search..."
+                  value={sidebarSearch}
+                  onChange={(e) => setSidebarSearch(e.target.value)}
+                />
+              </div>
+              {filteredWorkbenches.length === 0 ? (
                 <p style={{ padding: '12px', color: 'var(--fg-muted)', fontSize: '0.8rem' }}>
-                  {workshop ? 'No workbenches yet.' : 'Create a workshop to get started.'}
+                  {workbenches.length === 0
+                    ? workshop ? 'No workbenches yet.' : 'Create a workshop to get started.'
+                    : 'No matches.'}
                 </p>
               ) : (
-                workbenches.map((workbench) => (
+                filteredWorkbenches.map((workbench) => (
                   <div
                     key={workbench.id}
                     className={`workbench-item ${workbench.id === activeWorkbenchId ? 'active' : ''}`}
@@ -736,51 +766,95 @@ const Workshop: React.FC = () => {
                   </div>
                 ))
               )}
+              <div className="workshop-sidebar-footer">
+                <div className="sidebar-footer-avatar">
+                  {selfInitials}
+                  <span className="sidebar-online-dot" />
+                </div>
+                <span className="sidebar-footer-name">{currentUserName || 'You'}</span>
+              </div>
             </aside>
 
             <div className="workshop-middle">
               <div className="workshop-middle-header">
                 <Ticket size={15} strokeWidth={1.75} style={{ color: 'var(--fg-muted)' }} />
                 <h2>{activeWorkbench?.name ?? workshop?.name ?? 'Workbench'}</h2>
-                {activeWorkbenchId ? (
-                  <button
-                    className="workshop-action-btn"
-                    onClick={handleOpenCreateTicket}
-                    title="Create a ticket in this workbench"
-                  >
-                    <Plus size={14} strokeWidth={1.75} />
-                    Create Ticket
-                  </button>
+                {workshop?.member_count ? (
+                  <span className="member-count-chip">
+                    <Users size={11} strokeWidth={1.75} />
+                    {workshop.member_count}
+                  </span>
                 ) : null}
+                <button
+                  className="workshop-action-btn"
+                  style={{ marginLeft: 'auto' }}
+                  title="Workshop voice"
+                  onClick={() => { if (!inVoice) setVoiceOpen(true) }}
+                >
+                  <Headphones size={14} strokeWidth={1.75} />
+                </button>
+                <button className="workshop-action-btn" title="Notifications">
+                  <Bell size={14} strokeWidth={1.75} />
+                </button>
               </div>
 
               <div className="workshop-tickets">
-                {tickets.length === 0 ? (
-                  <p style={{ color: 'var(--fg-muted)', padding: '8px 0', fontSize: '0.85rem' }}>
-                    No tickets in this workbench.
-                  </p>
-                ) : (
-                  tickets.map((ticket) => {
-                    const assigneeLabel = ticket.assignee?.full_name || ticket.assignee?.email || 'Unassigned'
+                <div className="tickets-pane-header">
+                  <span className="ticket-count-chip">{filteredTickets.length}</span>
+                  <div className="ticket-filter-pills">
+                    {(['all', 'mine', 'open', 'high'] as const).map((f) => (
+                      <button
+                        key={f}
+                        className={`ticket-filter-pill${ticketFilter === f ? ' active' : ''}`}
+                        onClick={() => setTicketFilter(f)}
+                      >
+                        {f === 'all' ? 'All' : f === 'mine' ? 'Mine' : f === 'open' ? 'Open' : 'High Priority'}
+                      </button>
+                    ))}
+                  </div>
+                  {activeWorkbenchId ? (
+                    <button
+                      className="workshop-action-btn workshop-action-btn-primary"
+                      onClick={handleOpenCreateTicket}
+                      title="Create a ticket in this workbench"
+                    >
+                      <Plus size={14} strokeWidth={1.75} />
+                      New Ticket
+                    </button>
+                  ) : null}
+                </div>
+                <div className="tickets-pane-list">
+                  {filteredTickets.length === 0 ? (
+                    <p style={{ color: 'var(--fg-muted)', padding: '8px 0', fontSize: '0.85rem' }}>
+                      {tickets.length === 0 ? 'No tickets in this workbench.' : 'No tickets match this filter.'}
+                    </p>
+                  ) : (
+                    filteredTickets.map((ticket) => {
+                      const assigneeLabel = ticket.assignee?.full_name || ticket.assignee?.email || 'Unassigned'
+                      const priorityClass = (ticket.urgency || 'medium').toLowerCase()
 
-                    return (
-                      <div key={ticket.id} className="ticket-card-inline">
-                        <button
-                          type="button"
-                          className="ticket-row"
-                          onClick={() => void handleOpenTicket(ticket)}
-                        >
-                          <span className="ticket-id">{String(ticket.id).slice(0, 8)}</span>
-                          <span className="ticket-title">{ticket.title}</span>
-                          <span className="ticket-assignee">{assigneeLabel}</span>
-                          <span className={`ticket-status ${ticket.status.toLowerCase().replace('_', '-')}`}>
-                            {ticket.status.replace('_', ' ').toLowerCase()}
-                          </span>
-                        </button>
-                      </div>
-                    )
-                  })
-                )}
+                      return (
+                        <div key={ticket.id} className="ticket-card-inline">
+                          <button
+                            type="button"
+                            className="ticket-row"
+                            onClick={() => void handleOpenTicket(ticket)}
+                          >
+                            <span className="ticket-id">{String(ticket.id).slice(0, 8)}</span>
+                            <span className="ticket-title">{ticket.title}</span>
+                            <span className="ticket-assignee">{assigneeLabel}</span>
+                            <span className={`ticket-status ${ticket.status.toLowerCase().replace('_', '-')}`}>
+                              {ticket.status.replace('_', ' ').toLowerCase()}
+                            </span>
+                            <span className={`ticket-priority ${priorityClass}`}>
+                              {priorityClass}
+                            </span>
+                          </button>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
               </div>
 
               <div className="workshop-chat">
@@ -812,55 +886,66 @@ const Workshop: React.FC = () => {
                           </div>
                         )
                       })}
+                      <div ref={messagesEndRef} />
                     </div>
-                    <div className="chat-input-row">
+                    <div className="chat-composer">
                       <input
-                        className="chat-input"
+                        className="chat-composer-input"
                         placeholder={`Message ${activeWorkbench?.name ?? 'workbench'}...`}
                         value={input}
                         onChange={(event) => setInput(event.target.value)}
                         onKeyDown={handleKeyDown}
                         disabled={sending}
                       />
-                      <div className="chat-call-picker-wrapper">
-                        {showCallPicker && callState.status === 'idle' ? (
-                          <div className="chat-call-picker">
-                            {workshopMembersLoading ? (
-                              <p className="chat-call-picker-empty">Loading…</p>
-                            ) : workshopMembers.filter((m) => m.id !== currentUserId).length === 0 ? (
-                              <p className="chat-call-picker-empty">No other members</p>
-                            ) : (
-                              workshopMembers
-                                .filter((m) => m.id !== currentUserId)
-                                .map((member) => (
-                                  <button
-                                    key={member.id}
-                                    className="chat-call-picker-item"
-                                    onClick={() => {
-                                      setShowCallPicker(false)
-                                      void startCall(member.id)
-                                    }}
-                                  >
-                                    {member.full_name || member.email}
-                                  </button>
-                                ))
-                            )}
-                          </div>
-                        ) : null}
-                        <button
-                          className="chat-call-btn"
-                          onClick={() => void handleOpenCallPicker()}
-                          disabled={callState.status !== 'idle'}
-                          title="Start voice call"
-                        >
-                          <Phone size={14} strokeWidth={1.75} />
+                      <div className="chat-composer-actions">
+                        <button type="button" className="chat-composer-action-btn" title="Attach file" disabled>
+                          <Paperclip size={14} strokeWidth={1.75} />
+                        </button>
+                        <button type="button" className="chat-composer-action-btn" title="Mention" disabled>
+                          <AtSign size={14} strokeWidth={1.75} />
+                        </button>
+                        <button type="button" className="chat-composer-action-btn" title="Emoji" disabled>
+                          <Smile size={14} strokeWidth={1.75} />
+                        </button>
+                        <div className="chat-call-picker-wrapper">
+                          {showCallPicker && callState.status === 'idle' ? (
+                            <div className="chat-call-picker">
+                              {workshopMembersLoading ? (
+                                <p className="chat-call-picker-empty">Loading…</p>
+                              ) : workshopMembers.filter((m) => m.id !== currentUserId).length === 0 ? (
+                                <p className="chat-call-picker-empty">No other members</p>
+                              ) : (
+                                workshopMembers
+                                  .filter((m) => m.id !== currentUserId)
+                                  .map((member) => (
+                                    <button
+                                      key={member.id}
+                                      className="chat-call-picker-item"
+                                      onClick={() => {
+                                        setShowCallPicker(false)
+                                        void startCall(member.id)
+                                      }}
+                                    >
+                                      {member.full_name || member.email}
+                                    </button>
+                                  ))
+                              )}
+                            </div>
+                          ) : null}
+                          <button
+                            className="chat-composer-action-btn"
+                            onClick={() => void handleOpenCallPicker()}
+                            disabled={callState.status !== 'idle'}
+                            title="Start voice call"
+                          >
+                            <Phone size={14} strokeWidth={1.75} />
+                          </button>
+                        </div>
+                        <button className="chat-composer-send" onClick={handleSend} disabled={sending}>
+                          <Send size={14} strokeWidth={1.75} />
                         </button>
                       </div>
-                      <button className="chat-send-btn" onClick={handleSend} disabled={sending}>
-                        <Send size={14} strokeWidth={1.75} />
-                      </button>
                     </div>
-                    <div ref={messagesEndRef} />
                   </>
                 ) : (
                   <div style={{ padding: '16px', color: 'var(--fg-muted)', fontSize: '0.85rem' }}>
@@ -869,6 +954,34 @@ const Workshop: React.FC = () => {
                 )}
               </div>
             </div>
+
+            <aside className="workshop-members-panel">
+              {workshopMembers.length === 0 ? (
+                <p style={{ padding: '0.75rem 1rem', color: 'var(--fg-subtle)', fontSize: '0.8rem' }}>
+                  {workshopMembersLoading ? 'Loading...' : 'No members'}
+                </p>
+              ) : (
+                <>
+                  <div className="members-panel-section">
+                    Active — {workshopMembers.length}
+                  </div>
+                  {workshopMembers.map((member) => {
+                    const initials = `${member.first_name?.[0] ?? ''}${member.last_name?.[0] ?? ''}`.toUpperCase() || '?'
+                    return (
+                      <div key={member.id} className="members-panel-item">
+                        <div className="members-panel-avatar">
+                          {initials}
+                          <span className="members-panel-status online" />
+                        </div>
+                        <span className="members-panel-name">
+                          {member.full_name || member.username || member.email}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </>
+              )}
+            </aside>
           </div>
         )}
       </div>
