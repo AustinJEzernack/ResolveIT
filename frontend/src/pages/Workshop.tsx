@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Phone, Plus, Send, Settings, Ticket, UserPlus } from 'lucide-react'
+import { ArrowLeft, Headphones, Mic, MicOff, MonitorUp, PhoneOff, Phone, Plus, Send, Settings, Ticket, UserPlus, Volume2, VolumeX } from 'lucide-react'
 import CallUI from '../components/CallUI'
 import CreateWorkshopModal from '../components/CreateWorkshopModal'
 import { useWebRTC, type CallSignalData } from '../hooks/useWebRTC'
@@ -125,6 +125,14 @@ const Workshop: React.FC = () => {
     useWebRTC(wsRef)
   const [showCallPicker, setShowCallPicker] = useState(false)
   const [copiedWorkshopId, setCopiedWorkshopId] = useState(false)
+  const [voiceOpen, setVoiceOpen] = useState(false)
+  const [inVoice, setInVoice] = useState(false)
+  const [voiceMuted, setVoiceMuted] = useState(false)
+  const [voiceDeafened, setVoiceDeafened] = useState(false)
+  const [voiceExpanded, setVoiceExpanded] = useState(false)
+  const [voicePreviewMuted, setVoicePreviewMuted] = useState(false)
+  const [voicePreviewDeafened, setVoicePreviewDeafened] = useState(false)
+  const [currentUserName, setCurrentUserName] = useState('')
 
   const loadWorkbenchState = async () => {
     try {
@@ -163,9 +171,11 @@ const Workshop: React.FC = () => {
       const me = meResult.value.data
       setCurrentRole(me?.role ?? '')
       setCurrentUserId(me?.id ?? '')
+      setCurrentUserName(me?.full_name ?? `${me?.first_name ?? ''} ${me?.last_name ?? ''}`.trim())
     } else {
       setCurrentRole('')
       setCurrentUserId('')
+      setCurrentUserName('')
     }
   }
 
@@ -423,6 +433,42 @@ const Workshop: React.FC = () => {
     }
   }
 
+  const handleJoinVoice = () => {
+    setVoiceOpen(false)
+    setInVoice(true)
+    setVoiceMuted(voicePreviewMuted)
+    setVoiceDeafened(voicePreviewDeafened)
+    const displayName = currentUserName || 'You'
+    const sysMsg: ChatMessage = {
+      id: `__sys_voice_${Date.now()}`,
+      content: `${displayName} joined workshop voice`,
+      is_encrypted: false,
+      created_at: new Date().toISOString(),
+      edited_at: null,
+      reply_to_id: null,
+      channel_id: activeChannelId ?? undefined,
+      sender: {
+        id: '__system__',
+        email: '',
+        first_name: '',
+        last_name: '',
+        full_name: '',
+        role: '',
+        avatar_url: null,
+      },
+    }
+    setMessages((prev) => [...prev, sysMsg])
+  }
+
+  const handleLeaveVoice = () => {
+    setInVoice(false)
+    setVoiceExpanded(false)
+    setVoiceMuted(false)
+    setVoiceDeafened(false)
+    setVoicePreviewMuted(false)
+    setVoicePreviewDeafened(false)
+  }
+
   const handleCreateTicket = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!activeWorkbenchId || creatingTicket) return
@@ -581,6 +627,15 @@ const Workshop: React.FC = () => {
       .some((value) => value.toLowerCase().includes(query))
   })
 
+  const mockVoiceParticipants = useMemo(() => [
+    { id: 'mock1', name: 'Alice Morgan', initials: 'AM', muted: false, speaking: true },
+    { id: 'mock2', name: 'Bob Chen', initials: 'BC', muted: true, speaking: false },
+  ], [])
+
+  const selfInitials = currentUserName
+    ? currentUserName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+    : 'ME'
+
   return (
     <>
       <div className="workshop-page">
@@ -611,7 +666,25 @@ const Workshop: React.FC = () => {
               </button>
             ) : null}
             <button
-              className="workshop-action-btn"
+              className={`workshop-action-btn workshop-action-btn-primary${inVoice ? ' workshop-action-btn--voice-active' : ''}`}
+              onClick={() => { if (!inVoice) setVoiceOpen(true) }}
+              title="Workshop voice"
+            >
+              {inVoice ? (
+                <>
+                  <span className="voice-active-dot" />
+                  <Headphones size={14} strokeWidth={1.75} />
+                  Workshop voice
+                </>
+              ) : (
+                <>
+                  <Headphones size={14} strokeWidth={1.75} />
+                  Workshop voice
+                </>
+              )}
+            </button>
+            <button
+              className="workshop-action-btn workshop-action-btn-primary"
               onClick={handleOpenInviteModal}
               disabled={!canInviteMembers}
               title={canInviteMembers ? 'Invite a member' : 'Only workshop owners can invite members'}
@@ -620,7 +693,7 @@ const Workshop: React.FC = () => {
               Invite Member
             </button>
             <button
-              className="workshop-action-btn"
+              className="workshop-action-btn workshop-action-btn-primary"
               onClick={() => void handleOpenSettings()}
               disabled={!workshop}
               title={workshop ? 'View workshop settings' : 'No workshop available'}
@@ -708,6 +781,14 @@ const Workshop: React.FC = () => {
                   <>
                     <div className="chat-messages">
                       {messages.map((message) => {
+                        if (message.sender.id === '__system__') {
+                          return (
+                            <div key={message.id} className="chat-system-message">
+                              <Headphones size={12} strokeWidth={1.75} />
+                              {message.content}
+                            </div>
+                          )
+                        }
                         const initials = `${message.sender.first_name?.[0] ?? ''}${message.sender.last_name?.[0] ?? ''}`.toUpperCase()
                         return (
                           <div key={message.id} className="chat-message">
@@ -1188,6 +1269,188 @@ const Workshop: React.FC = () => {
         onToggleMute={toggleMute}
         remoteAudioRef={remoteAudioRef}
       />
+
+      {/* Workshop Voice — pre-join modal */}
+      {voiceOpen ? (
+        <div className="modal-overlay" onClick={() => setVoiceOpen(false)}>
+          <div className="voice-prejoin-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="voice-prejoin-header">
+              <div className="voice-prejoin-icon">
+                <Headphones size={22} strokeWidth={1.75} />
+              </div>
+              <div>
+                <h2 className="voice-prejoin-title">Workshop voice</h2>
+                <span className="voice-channel-tag"># general</span>
+              </div>
+            </div>
+
+            <div className="voice-prejoin-avatars">
+              {mockVoiceParticipants.map((p) => (
+                <div key={p.id} className="voice-prejoin-avatar" title={p.name}>
+                  {p.initials}
+                </div>
+              ))}
+              {mockVoiceParticipants.length > 0 && (
+                <span className="voice-prejoin-count">{mockVoiceParticipants.length} in channel</span>
+              )}
+            </div>
+
+            <div className="voice-prejoin-toggles">
+              <button
+                type="button"
+                className={`voice-toggle-btn${voicePreviewMuted ? ' voice-toggle-btn--off' : ''}`}
+                onClick={() => setVoicePreviewMuted((m) => !m)}
+              >
+                {voicePreviewMuted ? <MicOff size={15} strokeWidth={1.75} /> : <Mic size={15} strokeWidth={1.75} />}
+                {voicePreviewMuted ? 'Mic off' : 'Mic on'}
+              </button>
+              <button
+                type="button"
+                className={`voice-toggle-btn${voicePreviewDeafened ? ' voice-toggle-btn--off' : ''}`}
+                onClick={() => setVoicePreviewDeafened((d) => !d)}
+              >
+                {voicePreviewDeafened ? <VolumeX size={15} strokeWidth={1.75} /> : <Volume2 size={15} strokeWidth={1.75} />}
+                {voicePreviewDeafened ? 'Audio off' : 'Audio on'}
+              </button>
+            </div>
+
+            <div className="modal-actions">
+              <button type="button" className="btn-cancel" onClick={() => setVoiceOpen(false)}>Cancel</button>
+              <button type="button" className="btn-submit" onClick={handleJoinVoice}>Join</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Workshop Voice — persistent dock */}
+      {inVoice ? (
+        <div className="voice-dock" role="button" tabIndex={0} onClick={() => setVoiceExpanded(true)} onKeyDown={(e) => { if (e.key === 'Enter') setVoiceExpanded(true) }}>
+          <div className="voice-dock-header">
+            <span className="voice-active-dot" />
+            <span className="voice-dock-label">Workshop voice</span>
+          </div>
+          <div className="voice-dock-participants">
+            <div className={`voice-dock-avatar${!voiceMuted ? ' voice-dock-avatar--speaking' : ''}`} title="You">
+              {selfInitials}
+              {voiceMuted ? <span className="voice-dock-muted-badge"><MicOff size={8} strokeWidth={2} /></span> : null}
+            </div>
+            {mockVoiceParticipants.map((p) => (
+              <div key={p.id} className={`voice-dock-avatar${p.speaking ? ' voice-dock-avatar--speaking' : ''}`} title={p.name}>
+                {p.initials}
+                {p.muted ? <span className="voice-dock-muted-badge"><MicOff size={8} strokeWidth={2} /></span> : null}
+              </div>
+            ))}
+          </div>
+          <div className="voice-dock-controls" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className={`voice-dock-btn${voiceMuted ? ' voice-dock-btn--active' : ''}`}
+              onClick={() => setVoiceMuted((m) => !m)}
+              title={voiceMuted ? 'Unmute' : 'Mute'}
+            >
+              {voiceMuted ? <MicOff size={13} strokeWidth={1.75} /> : <Mic size={13} strokeWidth={1.75} />}
+            </button>
+            <button
+              type="button"
+              className={`voice-dock-btn${voiceDeafened ? ' voice-dock-btn--active' : ''}`}
+              onClick={() => setVoiceDeafened((d) => !d)}
+              title={voiceDeafened ? 'Undeafen' : 'Deafen'}
+            >
+              {voiceDeafened ? <VolumeX size={13} strokeWidth={1.75} /> : <Volume2 size={13} strokeWidth={1.75} />}
+            </button>
+            <button
+              type="button"
+              className="voice-dock-btn voice-dock-btn--leave"
+              onClick={handleLeaveVoice}
+              title="Leave voice"
+            >
+              <PhoneOff size={13} strokeWidth={1.75} />
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Workshop Voice — expanded modal */}
+      {voiceExpanded ? (
+        <div className="modal-overlay" onClick={() => setVoiceExpanded(false)}>
+          <div className="voice-expanded-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <span className="voice-active-dot" />
+                <h2>Workshop voice</h2>
+              </div>
+              <button className="modal-close-btn" onClick={() => setVoiceExpanded(false)} aria-label="Close">✕</button>
+            </div>
+
+            <div className="voice-participant-grid">
+              <div className={`voice-tile${!voiceMuted ? ' voice-tile--speaking' : ''}`}>
+                <div className="voice-tile-avatar">{selfInitials}</div>
+                {!voiceMuted ? (
+                  <div className="voice-equalizer">
+                    <span className="voice-eq-bar" style={{ animationDelay: '0ms' }} />
+                    <span className="voice-eq-bar" style={{ animationDelay: '120ms' }} />
+                    <span className="voice-eq-bar" style={{ animationDelay: '60ms' }} />
+                    <span className="voice-eq-bar" style={{ animationDelay: '180ms' }} />
+                  </div>
+                ) : null}
+                <span className="voice-tile-name">You</span>
+                {voiceMuted ? <span className="voice-tile-badge"><MicOff size={10} strokeWidth={2} /></span> : null}
+              </div>
+              {mockVoiceParticipants.map((p) => (
+                <div key={p.id} className={`voice-tile${p.speaking ? ' voice-tile--speaking' : ''}`}>
+                  <div className="voice-tile-avatar">{p.initials}</div>
+                  {p.speaking ? (
+                    <div className="voice-equalizer">
+                      <span className="voice-eq-bar" style={{ animationDelay: '0ms' }} />
+                      <span className="voice-eq-bar" style={{ animationDelay: '100ms' }} />
+                      <span className="voice-eq-bar" style={{ animationDelay: '50ms' }} />
+                      <span className="voice-eq-bar" style={{ animationDelay: '150ms' }} />
+                    </div>
+                  ) : null}
+                  <span className="voice-tile-name">{p.name}</span>
+                  {p.muted ? <span className="voice-tile-badge"><MicOff size={10} strokeWidth={2} /></span> : null}
+                </div>
+              ))}
+            </div>
+
+            <div className="voice-expanded-actions">
+              <button
+                type="button"
+                className={`voice-expanded-btn${voiceMuted ? ' voice-expanded-btn--active' : ''}`}
+                onClick={() => setVoiceMuted((m) => !m)}
+              >
+                {voiceMuted ? <MicOff size={16} strokeWidth={1.75} /> : <Mic size={16} strokeWidth={1.75} />}
+                {voiceMuted ? 'Unmute' : 'Mute'}
+              </button>
+              <button
+                type="button"
+                className={`voice-expanded-btn${voiceDeafened ? ' voice-expanded-btn--active' : ''}`}
+                onClick={() => setVoiceDeafened((d) => !d)}
+              >
+                {voiceDeafened ? <VolumeX size={16} strokeWidth={1.75} /> : <Volume2 size={16} strokeWidth={1.75} />}
+                {voiceDeafened ? 'Undeafen' : 'Deafen'}
+              </button>
+              <button
+                type="button"
+                className="voice-expanded-btn"
+                disabled
+                title="Screen sharing not available in this version"
+              >
+                <MonitorUp size={16} strokeWidth={1.75} />
+                Share screen
+              </button>
+              <button
+                type="button"
+                className="voice-expanded-btn voice-expanded-btn--leave"
+                onClick={handleLeaveVoice}
+              >
+                <PhoneOff size={16} strokeWidth={1.75} />
+                Leave voice
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isSettingsOpen && workshop ? (
         <div className="modal-overlay" onClick={() => setIsSettingsOpen(false)}>

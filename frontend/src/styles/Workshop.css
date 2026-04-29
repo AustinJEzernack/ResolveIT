@@ -602,3 +602,403 @@
     display: none;
   }
 }
+
+/* ── Workshop Voice ───────────────────────────────────────────────── */
+
+/* Nav button active state (dark surface + green dot) */
+.workshop-action-btn--voice-active {
+  background-color: #1a1a1e !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
+}
+
+@keyframes pulse-green {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.55; transform: scale(0.75); }
+}
+
+.voice-active-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #2dc653;
+  flex-shrink: 0;
+  animation: pulse-green 1.8s ease-in-out infinite;
+}
+
+/* System message in chat */
+.chat-system-message {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+  color: var(--fg-subtle);
+  padding: 0.15rem 0;
+  font-style: italic;
+}
+
+/* Pre-join modal */
+.voice-prejoin-modal {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 2rem;
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.voice-prejoin-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.voice-prejoin-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background-color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.voice-prejoin-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--fg-1);
+  margin: 0 0 0.2rem;
+}
+
+.voice-channel-tag {
+  font-size: 0.75rem;
+  color: var(--fg-subtle);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.voice-prejoin-avatars {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.voice-prejoin-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--fg-1);
+  flex-shrink: 0;
+}
+
+.voice-prejoin-count {
+  font-size: 0.78rem;
+  color: var(--fg-subtle);
+  margin-left: 0.25rem;
+}
+
+.voice-prejoin-toggles {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.voice-toggle-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-panel);
+  color: var(--fg-1);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.voice-toggle-btn:hover {
+  border-color: var(--accent);
+}
+
+.voice-toggle-btn--off {
+  background-color: rgba(224, 49, 49, 0.12);
+  border-color: rgba(224, 49, 49, 0.35);
+  color: #e86060;
+}
+
+/* Persistent dock — bottom-left */
+.voice-dock {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 1.25rem;
+  z-index: 900;
+  background-color: #1a1a1e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 176px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+  user-select: none;
+}
+
+.voice-dock:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.voice-dock-header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.voice-dock-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--fg-muted);
+  letter-spacing: 0.01em;
+}
+
+.voice-dock-participants {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.voice-dock-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: var(--bg-panel);
+  border: 1.5px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--fg-1);
+  position: relative;
+  flex-shrink: 0;
+  transition: border-color 0.15s ease;
+}
+
+.voice-dock-avatar--speaking {
+  border-color: #2dc653;
+  box-shadow: 0 0 0 1.5px rgba(45, 198, 83, 0.35);
+}
+
+.voice-dock-muted-badge {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 14px;
+  height: 14px;
+  background-color: #e03131;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.voice-dock-controls {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.voice-dock-btn {
+  flex: 1;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--fg-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.voice-dock-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--fg-1);
+}
+
+.voice-dock-btn--active {
+  background-color: rgba(224, 49, 49, 0.18);
+  border-color: rgba(224, 49, 49, 0.4);
+  color: #e86060;
+}
+
+.voice-dock-btn--leave {
+  background-color: rgba(224, 49, 49, 0.15);
+  border-color: rgba(224, 49, 49, 0.3);
+  color: #e86060;
+}
+
+.voice-dock-btn--leave:hover {
+  background-color: rgba(224, 49, 49, 0.3);
+  color: #fff;
+}
+
+/* Expanded voice modal */
+.voice-expanded-modal {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  width: 580px;
+  max-width: calc(100vw - 2rem);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+}
+
+.voice-participant-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 1rem;
+}
+
+.voice-tile {
+  background-color: var(--bg-panel);
+  border: 1.5px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.voice-tile--speaking {
+  border-color: #2dc653;
+  box-shadow: 0 0 0 2px rgba(45, 198, 83, 0.2);
+}
+
+.voice-tile-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: var(--bg-app);
+  border: 1.5px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--fg-1);
+}
+
+.voice-tile-name {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--fg-muted);
+  text-align: center;
+}
+
+.voice-tile-badge {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  width: 18px;
+  height: 18px;
+  background-color: #e03131;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+/* Animated equalizer */
+@keyframes eq-bounce {
+  0%, 100% { transform: scaleY(0.3); }
+  50%       { transform: scaleY(1); }
+}
+
+.voice-equalizer {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+
+.voice-eq-bar {
+  width: 3px;
+  height: 100%;
+  background-color: #2dc653;
+  border-radius: 2px;
+  transform-origin: bottom;
+  animation: eq-bounce 0.7s ease-in-out infinite;
+}
+
+/* Expanded action buttons */
+.voice-expanded-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.voice-expanded-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 36px;
+  padding: 0 0.9rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-panel);
+  color: var(--fg-1);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.voice-expanded-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.voice-expanded-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.voice-expanded-btn--active {
+  background-color: rgba(224, 49, 49, 0.12);
+  border-color: rgba(224, 49, 49, 0.35);
+  color: #e86060;
+}
+
+.voice-expanded-btn--leave {
+  background-color: rgba(224, 49, 49, 0.15);
+  border-color: rgba(224, 49, 49, 0.3);
+  color: #e86060;
+  margin-left: auto;
+}
+
+.voice-expanded-btn--leave:hover {
+  background-color: var(--accent);
+  border-color: transparent;
+  color: #fff;
+}
