@@ -7,7 +7,7 @@ from rest_framework.response import Response
 
 from apps.core.audit import log_action
 from apps.core.models import AuditLog, Notification
-from apps.core.notifications import notify_ticket_created, send_notification
+from apps.core.notifications import broadcast_ticket_assigned, notify_ticket_created, send_notification
 from apps.core.permissions import IsOwner
 
 from .filters import TicketFilter
@@ -132,6 +132,7 @@ class TicketDetailView(generics.RetrieveUpdateDestroyAPIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        old_assignee_id = ticket.assignee_id
         old_status = ticket.status
         response = super().update(request, *args, **kwargs)
 
@@ -155,6 +156,10 @@ class TicketDetailView(generics.RetrieveUpdateDestroyAPIView):
                 entity_type="ticket",
                 entity_id=ticket.id,
             )
+
+        # Broadcast real-time activity when a ticket is assigned or reassigned
+        if ticket.assignee_id and ticket.assignee_id != old_assignee_id:
+            broadcast_ticket_assigned(ticket=ticket, actor=user)
 
         response.data = {"status": "success", "data": {"ticket": response.data}}
         return response

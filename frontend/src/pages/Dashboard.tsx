@@ -4,6 +4,7 @@ import { Check, Info, AlertTriangle, X, MessageSquare, Settings, ChevronLeft, Ch
 import apiClient from '@services/api'
 import { clearAuthTokens, getAccessToken, getRefreshToken, type AuthUser } from '@services/auth'
 import notificationService, { Notification } from '@services/notificationService'
+import { connectWebSocket } from '@services/messagingService'
 import '../styles/Dashboard.css'
 
 function unwrapListPayload<T>(payload: unknown): T[] {
@@ -167,6 +168,25 @@ const Dashboard: React.FC = () => {
       setJoiningWorkshop(false)
     }
   }
+
+  useEffect(() => {
+    const token = getAccessToken()
+    if (!token) return
+    const ws = connectWebSocket(token, (event) => {
+      if (event.type === 'ticket.activity' && event.data?.action === 'assigned') {
+        const d = event.data
+        const actor: string = d.actor?.full_name ?? 'Someone'
+        const assignee: string = d.assignee?.full_name ?? 'someone'
+        const title: string = d.ticket_title ?? 'a ticket'
+        notificationService.addNotification(
+          `${actor} assigned "${title}" to ${assignee}`,
+          'info',
+        )
+        setNotifications([...notificationService.getNotifications()])
+      }
+    })
+    return () => ws.close()
+  }, [])
 
   // Close modal when clicking outside
   useEffect(() => {

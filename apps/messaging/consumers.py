@@ -314,6 +314,10 @@ class MainConsumer(AsyncJsonWebsocketConsumer):
         """Broadcast voice channel presence update to all workshop members."""
         await self.send_json({"type": "voice.state", "data": event["data"]})
 
+    async def ticket_activity(self, event: dict):
+        """Relay ticket activity events (assigned, etc.) to all workshop clients."""
+        await self.send_json({"type": "ticket.activity", "data": event["data"]})
+
     # ─────────────────────────────────────────────
     # DB helpers
     # ─────────────────────────────────────────────
