@@ -4,6 +4,7 @@ import { ArrowLeft, Headphones, Mic, MicOff, MonitorUp, PhoneOff, Phone, Plus, S
 import CallUI from '../components/CallUI'
 import CreateWorkshopModal from '../components/CreateWorkshopModal'
 import { useWebRTC, type CallSignalData } from '../hooks/useWebRTC'
+import { useVoiceChannel, type VoiceStatePayload, type VoiceSignalData } from '../hooks/useVoiceChannel'
 import apiClient from '@services/api'
 import {
   connectWebSocket,
@@ -123,6 +124,7 @@ const Workshop: React.FC = () => {
 
   const { callState, startCall, answerCall, rejectCall, endCall, toggleMute, handleCallSignal, remoteAudioRef } =
     useWebRTC(wsRef)
+  const voiceChannel = useVoiceChannel(wsRef, currentUserId)
   const [showCallPicker, setShowCallPicker] = useState(false)
   const [copiedWorkshopId, setCopiedWorkshopId] = useState(false)
   const [voiceOpen, setVoiceOpen] = useState(false)
@@ -199,6 +201,10 @@ const Workshop: React.FC = () => {
             prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]
           )
         }
+      } else if (event.type === 'voice.state') {
+        voiceChannel.handleVoiceState(event.data as VoiceStatePayload)
+      } else if (event.type === 'call.signal' && (event.data as VoiceSignalData).context === 'voice') {
+        void voiceChannel.handleVoiceSignal(event.data as VoiceSignalData)
       } else if (event.type === 'call.signal') {
         handleCallSignal(event.data as CallSignalData)
       }
@@ -433,7 +439,9 @@ const Workshop: React.FC = () => {
     }
   }
 
-  const handleJoinVoice = () => {
+  const handleJoinVoice = async () => {
+    const ok = await voiceChannel.join(voicePreviewMuted, voicePreviewDeafened)
+    if (!ok) return
     setVoiceOpen(false)
     setInVoice(true)
     setVoiceMuted(voicePreviewMuted)
@@ -461,6 +469,7 @@ const Workshop: React.FC = () => {
   }
 
   const handleLeaveVoice = () => {
+    voiceChannel.leave()
     setInVoice(false)
     setVoiceExpanded(false)
     setVoiceMuted(false)
@@ -627,10 +636,8 @@ const Workshop: React.FC = () => {
       .some((value) => value.toLowerCase().includes(query))
   })
 
-  const mockVoiceParticipants = useMemo(() => [
-    { id: 'mock1', name: 'Alice Morgan', initials: 'AM', muted: false, speaking: true },
-    { id: 'mock2', name: 'Bob Chen', initials: 'BC', muted: true, speaking: false },
-  ], [])
+  const getVoiceInitials = (name: string) =>
+    name.split(' ').filter(Boolean).map((n) => n[0]).join('').slice(0, 2).toUpperCase() || '??'
 
   const selfInitials = currentUserName
     ? currentUserName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
@@ -1285,13 +1292,13 @@ const Workshop: React.FC = () => {
             </div>
 
             <div className="voice-prejoin-avatars">
-              {mockVoiceParticipants.map((p) => (
-                <div key={p.id} className="voice-prejoin-avatar" title={p.name}>
-                  {p.initials}
+              {voiceChannel.participants.map((p) => (
+                <div key={p.id} className="voice-prejoin-avatar" title={p.full_name}>
+                  {getVoiceInitials(p.full_name)}
                 </div>
               ))}
-              {mockVoiceParticipants.length > 0 && (
-                <span className="voice-prejoin-count">{mockVoiceParticipants.length} in channel</span>
+              {voiceChannel.participants.length > 0 && (
+                <span className="voice-prejoin-count">{voiceChannel.participants.length} in channel</span>
               )}
             </div>
 
@@ -1314,9 +1321,14 @@ const Workshop: React.FC = () => {
               </button>
             </div>
 
+            {voiceChannel.errorMessage ? (
+              <p className="voice-prejoin-error">{voiceChannel.errorMessage}</p>
+            ) : null}
             <div className="modal-actions">
-              <button type="button" className="btn-cancel" onClick={() => setVoiceOpen(false)}>Cancel</button>
-              <button type="button" className="btn-submit" onClick={handleJoinVoice}>Join</button>
+              <button type="button" className="btn-cancel" onClick={() => setVoiceOpen(false)} disabled={voiceChannel.joining}>Cancel</button>
+              <button type="button" className="btn-submit" onClick={() => void handleJoinVoice()} disabled={voiceChannel.joining}>
+                {voiceChannel.joining ? 'Joining...' : 'Join'}
+              </button>
             </div>
           </div>
         </div>
@@ -1334,9 +1346,9 @@ const Workshop: React.FC = () => {
               {selfInitials}
               {voiceMuted ? <span className="voice-dock-muted-badge"><MicOff size={8} strokeWidth={2} /></span> : null}
             </div>
-            {mockVoiceParticipants.map((p) => (
-              <div key={p.id} className={`voice-dock-avatar${p.speaking ? ' voice-dock-avatar--speaking' : ''}`} title={p.name}>
-                {p.initials}
+            {voiceChannel.participants.map((p) => (
+              <div key={p.id} className="voice-dock-avatar" title={p.full_name}>
+                {getVoiceInitials(p.full_name)}
                 {p.muted ? <span className="voice-dock-muted-badge"><MicOff size={8} strokeWidth={2} /></span> : null}
               </div>
             ))}
@@ -1345,7 +1357,7 @@ const Workshop: React.FC = () => {
             <button
               type="button"
               className={`voice-dock-btn${voiceMuted ? ' voice-dock-btn--active' : ''}`}
-              onClick={() => setVoiceMuted((m) => !m)}
+              onClick={() => { const next = !voiceMuted; setVoiceMuted(next); voiceChannel.applyMute(next) }}
               title={voiceMuted ? 'Unmute' : 'Mute'}
             >
               {voiceMuted ? <MicOff size={13} strokeWidth={1.75} /> : <Mic size={13} strokeWidth={1.75} />}
@@ -1353,7 +1365,7 @@ const Workshop: React.FC = () => {
             <button
               type="button"
               className={`voice-dock-btn${voiceDeafened ? ' voice-dock-btn--active' : ''}`}
-              onClick={() => setVoiceDeafened((d) => !d)}
+              onClick={() => { const next = !voiceDeafened; setVoiceDeafened(next); voiceChannel.applyDeafen(next) }}
               title={voiceDeafened ? 'Undeafen' : 'Deafen'}
             >
               {voiceDeafened ? <VolumeX size={13} strokeWidth={1.75} /> : <Volume2 size={13} strokeWidth={1.75} />}
@@ -1396,18 +1408,10 @@ const Workshop: React.FC = () => {
                 <span className="voice-tile-name">You</span>
                 {voiceMuted ? <span className="voice-tile-badge"><MicOff size={10} strokeWidth={2} /></span> : null}
               </div>
-              {mockVoiceParticipants.map((p) => (
-                <div key={p.id} className={`voice-tile${p.speaking ? ' voice-tile--speaking' : ''}`}>
-                  <div className="voice-tile-avatar">{p.initials}</div>
-                  {p.speaking ? (
-                    <div className="voice-equalizer">
-                      <span className="voice-eq-bar" style={{ animationDelay: '0ms' }} />
-                      <span className="voice-eq-bar" style={{ animationDelay: '100ms' }} />
-                      <span className="voice-eq-bar" style={{ animationDelay: '50ms' }} />
-                      <span className="voice-eq-bar" style={{ animationDelay: '150ms' }} />
-                    </div>
-                  ) : null}
-                  <span className="voice-tile-name">{p.name}</span>
+              {voiceChannel.participants.map((p) => (
+                <div key={p.id} className="voice-tile">
+                  <div className="voice-tile-avatar">{getVoiceInitials(p.full_name)}</div>
+                  <span className="voice-tile-name">{p.full_name}</span>
                   {p.muted ? <span className="voice-tile-badge"><MicOff size={10} strokeWidth={2} /></span> : null}
                 </div>
               ))}
@@ -1417,7 +1421,7 @@ const Workshop: React.FC = () => {
               <button
                 type="button"
                 className={`voice-expanded-btn${voiceMuted ? ' voice-expanded-btn--active' : ''}`}
-                onClick={() => setVoiceMuted((m) => !m)}
+                onClick={() => { const next = !voiceMuted; setVoiceMuted(next); voiceChannel.applyMute(next) }}
               >
                 {voiceMuted ? <MicOff size={16} strokeWidth={1.75} /> : <Mic size={16} strokeWidth={1.75} />}
                 {voiceMuted ? 'Unmute' : 'Mute'}
@@ -1425,7 +1429,7 @@ const Workshop: React.FC = () => {
               <button
                 type="button"
                 className={`voice-expanded-btn${voiceDeafened ? ' voice-expanded-btn--active' : ''}`}
-                onClick={() => setVoiceDeafened((d) => !d)}
+                onClick={() => { const next = !voiceDeafened; setVoiceDeafened(next); voiceChannel.applyDeafen(next) }}
               >
                 {voiceDeafened ? <VolumeX size={16} strokeWidth={1.75} /> : <Volume2 size={16} strokeWidth={1.75} />}
                 {voiceDeafened ? 'Undeafen' : 'Deafen'}
