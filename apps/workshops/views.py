@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.http import Http404
 from django.utils.text import slugify
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from apps.accounts.models import User
 from apps.accounts.serializers import PublicUserSerializer
@@ -25,9 +25,12 @@ class WorkshopCreateView(generics.CreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        # Generate slug from workshop name
         workshop = serializer.save()
-        workshop.slug = slugify(workshop.name)
+        base_slug = slugify(workshop.name) or str(uuid4())[:8]
+        slug = base_slug
+        if Workshop.objects.filter(slug=slug).exclude(id=workshop.id).exists():
+            slug = f"{base_slug}-{str(uuid4())[:8]}"
+        workshop.slug = slug
         workshop.save(update_fields=["slug"])
 
         # Create default "General" workbench

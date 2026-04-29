@@ -1,5 +1,8 @@
+import uuid
+
 from django.db import transaction
 from django.utils import timezone
+from django.utils.text import slugify
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -15,7 +18,17 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def get_token(cls, user):
         token = super().get_token(user)
         token["role"] = user.role
-        token["workshop_id"] = str(user.workshop_id) if user.workshop_id else None
+
+        workshop_id = user.workshop_id
+        if workshop_id is None:
+            # In-memory object may be stale — re-fetch the FK from the DB.
+            workshop = Workshop.objects.filter(users=user).first()
+            if workshop:
+                user.workshop = workshop
+                user.save(update_fields=["workshop"])
+                workshop_id = workshop.id
+
+        token["workshop_id"] = str(workshop_id) if workshop_id else None
         token["email"] = user.email
         return token
 
@@ -70,10 +83,15 @@ class RegisterWorkshopSerializer(serializers.Serializer):
     @transaction.atomic
     def create(self, validated_data):
         workshop = None
-        if validated_data.get("workshop_name") and validated_data.get("workshop_slug"):
+        if validated_data.get("workshop_name"):
+            slug = validated_data.get("workshop_slug") or ""
+            if not slug:
+                slug = slugify(validated_data["workshop_name"]) or str(uuid.uuid4())[:8]
+            if Workshop.objects.filter(slug=slug).exists():
+                slug = f"{slug}-{str(uuid.uuid4())[:8]}"
             workshop = Workshop.objects.create(
                 name=validated_data["workshop_name"],
-                slug=validated_data["workshop_slug"],
+                slug=slug,
             )
         
         owner = User.objects.create_user(

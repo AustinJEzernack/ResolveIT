@@ -37,7 +37,10 @@ class MainConsumer(AsyncJsonWebsocketConsumer):
             return
 
         self.user = user
-        self.workshop_id = str(user.workshop_id)
+        self.workshop_id = str(user.workshop_id) if user.workshop_id else None
+        if not self.workshop_id or self.workshop_id == "None":
+            await self.close(code=4002)
+            return
         self._joined_channels: set[str] = set()
 
         # Personal room — for direct notifications and DMs
