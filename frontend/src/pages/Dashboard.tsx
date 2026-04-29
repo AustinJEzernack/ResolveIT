@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Check, Info, AlertTriangle, X, MessageSquare, Settings, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Check, Info, AlertTriangle, X, MessageSquare, Settings, ChevronLeft, ChevronRight, LayoutDashboard, Ticket, Users, BarChart2 } from 'lucide-react'
 import apiClient from '@services/api'
 import { clearAuthTokens, getAccessToken, getRefreshToken, type AuthUser } from '@services/auth'
 import notificationService, { Notification } from '@services/notificationService'
@@ -207,11 +207,21 @@ const Dashboard: React.FC = () => {
 
 
 
+  const TABS = [
+    { id: 'overview',  label: 'Overview',  Icon: LayoutDashboard },
+    { id: 'tickets',   label: 'Tickets',   Icon: Ticket },
+    { id: 'workshops', label: 'Workshops', Icon: Users },
+    { id: 'reports',   label: 'Reports',   Icon: BarChart2 },
+  ]
+  const [activeTab, setActiveTab] = useState('overview')
+
   return (
     <div className="dashboard-container">
       <nav className="dashboard-navbar">
         <div className="navbar-content">
-          <Link to="/" className="logo-link">ResolveIT</Link>
+          <Link to="/" className="logo-link">
+            <img src="/resolveit-wordmark-white.svg" alt="ResolveIT" height={28} />
+          </Link>
           <div className="navbar-user">
             <span className="user-name">{user?.first_name} {user?.last_name}</span>
             <div className="navbar-menu">
@@ -237,6 +247,19 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       </nav>
+
+      <div className="dashboard-tabs">
+        {TABS.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            className={`dashboard-tab${activeTab === id ? ' active' : ''}`}
+            onClick={() => setActiveTab(id)}
+          >
+            <Icon size={13} strokeWidth={1.75} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+            {label}
+          </button>
+        ))}
+      </div>
 
       <div className="dashboard-wrapper">
         {/* Activity Log Sidebar */}

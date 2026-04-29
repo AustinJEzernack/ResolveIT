@@ -8,7 +8,9 @@ const Home: React.FC = () => {
     <div className="home-container">
       <header className="navbar">
         <div className="navbar-content">
-          <Link to="/" className="logo">ResolveIT</Link>
+          <Link to="/" className="logo">
+            <img src="/resolveit-wordmark-white.svg" alt="ResolveIT" height={28} />
+          </Link>
           <nav className="nav-links">
             <Link to="/about">About</Link>
             <a href="#features">Features</a>

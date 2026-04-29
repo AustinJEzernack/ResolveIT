@@ -3,6 +3,12 @@ import { useNavigate, Link } from 'react-router-dom'
 import apiClient from '@services/api'
 import '../styles/Login.css'
 
+const SSO_PROVIDERS = [
+  { label: 'SSO', icon: '🔑' },
+  { label: 'Google', icon: 'G' },
+  { label: 'GitHub', icon: '⌥' },
+]
+
 const Login: React.FC = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -35,7 +41,9 @@ const Login: React.FC = () => {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <Link to="/" className="logo">ResolveIT</Link>
+          <Link to="/" className="logo-img">
+            <img src="/resolveit-wordmark-white.svg" alt="ResolveIT" height={32} />
+          </Link>
           <p className="subtitle">Welcome back</p>
         </div>
 
@@ -70,6 +78,16 @@ const Login: React.FC = () => {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
+
+        <div className="sso-divider">Or continue with</div>
+        <div className="sso-row">
+          {SSO_PROVIDERS.map((p) => (
+            <button key={p.label} className="sso-btn" type="button" disabled>
+              <span>{p.icon}</span>
+              {p.label}
+            </button>
+          ))}
+        </div>
 
         <div className="login-footer">
           <p>Don't have an account? <Link to="/register">Sign up</Link></p>

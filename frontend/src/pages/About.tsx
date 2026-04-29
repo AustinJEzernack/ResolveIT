@@ -1,5 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
+import { Users, Lock, Settings, BarChart2, Ticket, MessageSquare, Clock, Shield, ClipboardList, Activity } from 'lucide-react'
 import '../styles/About.css'
 
 const About: React.FC = () => {
@@ -7,7 +8,9 @@ const About: React.FC = () => {
     <div className="about-container">
       <header className="navbar">
         <div className="navbar-content">
-          <Link to="/" className="logo">ResolveIT</Link>
+          <Link to="/" className="logo">
+            <img src="/resolveit-wordmark-white.svg" alt="ResolveIT" height={28} />
+          </Link>
           <nav className="nav-links">
             <Link to="/about">About</Link>
             <a href="/#features">Features</a>
@@ -36,22 +39,22 @@ const About: React.FC = () => {
             </p>
             <div className="workshops-grid">
               <div className="workshop-card">
-                <div className="icon">👥</div>
+                <div className="icon"><Users size={24} strokeWidth={1.75} /></div>
                 <h3>Team Collaboration</h3>
                 <p>Bring your team together in a dedicated workspace to solve problems faster</p>
               </div>
               <div className="workshop-card">
-                <div className="icon">🔒</div>
-                <h3>Secure & Isolated</h3>
+                <div className="icon"><Lock size={24} strokeWidth={1.75} /></div>
+                <h3>Secure &amp; Isolated</h3>
                 <p>Each workshop has its own isolated environment with role-based access controls</p>
               </div>
               <div className="workshop-card">
-                <div className="icon">⚙️</div>
+                <div className="icon"><Settings size={24} strokeWidth={1.75} /></div>
                 <h3>Customizable</h3>
                 <p>Configure your workshop settings, team members, and workflows to match your needs</p>
               </div>
               <div className="workshop-card">
-                <div className="icon">📊</div>
+                <div className="icon"><BarChart2 size={24} strokeWidth={1.75} /></div>
                 <h3>Analytics</h3>
                 <p>Track ticket resolution times, team performance, and get actionable insights</p>
               </div>
@@ -107,27 +110,27 @@ const About: React.FC = () => {
             <h2>Key Features</h2>
             <div className="features-list">
               <div className="feature-item">
-                <div className="feature-title">🎫 Intelligent Ticket Management</div>
+                <div className="feature-title"><Ticket size={16} strokeWidth={1.75} /> Intelligent Ticket Management</div>
                 <p>Create, assign, and track tickets with multiple status levels and priority settings. Set urgency levels from LOW to CRITICAL to ensure important issues are addressed first.</p>
               </div>
               <div className="feature-item">
-                <div className="feature-title">💬 Real-Time Messaging</div>
+                <div className="feature-title"><MessageSquare size={16} strokeWidth={1.75} /> Real-Time Messaging</div>
                 <p>Collaborate with your team through encrypted, real-time messaging. Similar to Discord or Slack, but integrated directly into your ticket workflow.</p>
               </div>
               <div className="feature-item">
-                <div className="feature-title">⏱️ Work Logs & Time Tracking</div>
+                <div className="feature-title"><Clock size={16} strokeWidth={1.75} /> Work Logs &amp; Time Tracking</div>
                 <p>Technicians can log time spent on tickets and add detailed notes. Perfect for tracking billable hours and maintaining a historical record.</p>
               </div>
               <div className="feature-item">
-                <div className="feature-title">🔐 Enterprise Security</div>
+                <div className="feature-title"><Shield size={16} strokeWidth={1.75} /> Enterprise Security</div>
                 <p>End-to-end encryption for messages, JWT authentication with rotating tokens, and role-based access control keep your data secure.</p>
               </div>
               <div className="feature-item">
-                <div className="feature-title">📋 Role-Based Permissions</div>
+                <div className="feature-title"><ClipboardList size={16} strokeWidth={1.75} /> Role-Based Permissions</div>
                 <p>Manage access with OWNER and TECHNICIAN roles. Control who can create, edit, and resolve tickets in your workshop.</p>
               </div>
               <div className="feature-item">
-                <div className="feature-title">📊 Audit Logging</div>
+                <div className="feature-title"><Activity size={16} strokeWidth={1.75} /> Audit Logging</div>
                 <p>Complete audit trail of all actions taken in your workshop. Track changes, monitor user activity, and maintain compliance records.</p>
               </div>
             </div>
