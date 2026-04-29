@@ -13,16 +13,15 @@ Client event format:
 """
 import logging
 
+from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from django.contrib.auth.models import AnonymousUser
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
-# In-process voice room state.
-# Structure: { workshop_id: { user_id: { id, full_name, muted } } }
-# Shared across all consumer instances in a single process via module-level dict.
-_voice_rooms: dict[str, dict[str, dict]] = {}
+_VOICE_ROOM_TTL = 3600  # seconds; refreshed on every write
 
 
 class MainConsumer(AsyncJsonWebsocketConsumer):
@@ -217,17 +216,26 @@ class MainConsumer(AsyncJsonWebsocketConsumer):
         )
 
     # ─────────────────────────────────────────────
-    # Workshop voice presence
+    # Workshop voice presence (Redis-backed, shared across workers)
     # ─────────────────────────────────────────────
 
+    def _voice_key(self) -> str:
+        return f"voice_room_{self.workshop_id}"
+
+    async def _room_get(self) -> dict:
+        return await sync_to_async(cache.get)(self._voice_key()) or {}
+
+    async def _room_set(self, room: dict) -> None:
+        await sync_to_async(cache.set)(self._voice_key(), room, _VOICE_ROOM_TTL)
+
     async def handle_voice_join(self, data: dict):
-        user_info = {
+        room = await self._room_get()
+        room[str(self.user.id)] = {
             "id": str(self.user.id),
             "full_name": self.user.get_full_name() or self.user.email,
             "muted": bool(data.get("muted", False)),
         }
-        room = _voice_rooms.setdefault(self.workshop_id, {})
-        room[str(self.user.id)] = user_info
+        await self._room_set(room)
         await self.channel_layer.group_send(
             f"workshop_{self.workshop_id}",
             {
@@ -241,8 +249,9 @@ class MainConsumer(AsyncJsonWebsocketConsumer):
         )
 
     async def handle_voice_leave(self, data: dict):
-        room = _voice_rooms.get(self.workshop_id, {})
+        room = await self._room_get()
         room.pop(str(self.user.id), None)
+        await self._room_set(room)
         await self.channel_layer.group_send(
             f"workshop_{self.workshop_id}",
             {
@@ -256,10 +265,11 @@ class MainConsumer(AsyncJsonWebsocketConsumer):
         )
 
     async def handle_voice_mute_update(self, data: dict):
-        room = _voice_rooms.get(self.workshop_id, {})
+        room = await self._room_get()
         uid = str(self.user.id)
         if uid in room:
             room[uid]["muted"] = bool(data.get("muted", False))
+        await self._room_set(room)
         await self.channel_layer.group_send(
             f"workshop_{self.workshop_id}",
             {
@@ -273,10 +283,11 @@ class MainConsumer(AsyncJsonWebsocketConsumer):
         )
 
     async def _voice_disconnect_cleanup(self):
-        room = _voice_rooms.get(self.workshop_id, {})
+        room = await self._room_get()
         if str(self.user.id) not in room:
             return
         room.pop(str(self.user.id), None)
+        await self._room_set(room)
         await self.channel_layer.group_send(
             f"workshop_{self.workshop_id}",
             {

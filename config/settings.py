@@ -92,6 +92,16 @@ DATABASES = {
 }
 
 # ─────────────────────────────────────────────
+# Cache (Redis — shared across all Gunicorn workers)
+# ─────────────────────────────────────────────
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": os.environ.get("REDIS_URL", "redis://localhost:6379"),
+    }
+}
+
+# ─────────────────────────────────────────────
 # Django Channels (WebSocket)
 # ─────────────────────────────────────────────
 CHANNEL_LAYERS = {
