@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, AtSign, Bell, Headphones, Mic, MicOff, MonitorUp, Paperclip, PhoneOff, Phone, Plus, Send, Settings, Smile, Ticket, UserPlus, Users, Volume2, VolumeX } from 'lucide-react'
+import { ArrowLeft, AtSign, Bell, CheckCircle2, Headphones, Mic, MicOff, MonitorUp, Paperclip, PhoneOff, Phone, Plus, Send, Settings, Smile, Ticket, UserPlus, Users, Volume2, VolumeX } from 'lucide-react'
 import CallUI from '../components/CallUI'
 import CreateWorkshopModal from '../components/CreateWorkshopModal'
 import { useWebRTC, type CallSignalData } from '../hooks/useWebRTC'
@@ -104,6 +104,7 @@ const Workshop: React.FC = () => {
     assignee_id: '',
   })
   const [savingTicket, setSavingTicket] = useState(false)
+  const [resolvingId, setResolvingId] = useState<string | null>(null)
   const [editTicketError, setEditTicketError] = useState('')
   const [editTicketForm, setEditTicketForm] = useState({
     title: '',
@@ -545,6 +546,23 @@ const Workshop: React.FC = () => {
       } finally {
         setWorkshopMembersLoading(false)
       }
+    }
+  }
+
+  const handleResolveTicket = async (ticketId: string) => {
+    if (resolvingId) return
+    setResolvingId(ticketId)
+    setEditTicketError('')
+    try {
+      await apiClient.patch(`/tickets/${ticketId}/`, { status: 'RESOLVED' })
+      setTickets((prev) => prev.map((t) => t.id === ticketId ? { ...t, status: 'RESOLVED' } : t))
+      setSelectedTicket((prev) => prev && prev.id === ticketId ? { ...prev, status: 'RESOLVED' } : prev)
+      setEditTicketForm((prev) => ({ ...prev, status: 'RESOLVED' }))
+    } catch (err: any) {
+      const data = err.response?.data
+      setEditTicketError(data?.detail || data?.message || data?.status?.[0] || 'Failed to resolve ticket')
+    } finally {
+      setResolvingId(null)
     }
   }
 
@@ -1307,6 +1325,15 @@ const Workshop: React.FC = () => {
               {editTicketError ? <div className="error-message">{editTicketError}</div> : null}
 
               <div className="modal-actions">
+                <button
+                  type="button"
+                  className="ticket-complete-btn"
+                  onClick={() => handleResolveTicket(selectedTicket.id)}
+                  disabled={resolvingId === selectedTicket.id || savingTicket || selectedTicket.status === 'RESOLVED' || selectedTicket.status === 'CLOSED'}
+                >
+                  <CheckCircle2 size={14} strokeWidth={1.75} />
+                  {resolvingId === selectedTicket.id ? 'Resolving...' : 'Resolve'}
+                </button>
                 <button type="button" className="btn-cancel" onClick={() => setSelectedTicket(null)} disabled={savingTicket}>
                   Cancel
                 </button>

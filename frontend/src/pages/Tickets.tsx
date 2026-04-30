@@ -303,8 +303,9 @@ const Tickets: React.FC = () => {
   const handleCompleteTicket = async (ticketId: string) => {
     if (completingId) return
     setCompletingId(ticketId)
+    setEditError('')
     try {
-      const response = await apiClient.patch(`/tickets/${ticketId}/`, { status: 'CLOSED' })
+      const response = await apiClient.patch(`/tickets/${ticketId}/`, { status: 'RESOLVED' })
       const patchedTicket = (response.data?.data?.ticket || response.data?.ticket || response.data) as TicketItem
       const persistedId = patchedTicket?.id || ticketId
       const detailResponse = await apiClient.get(`/tickets/${persistedId}/`)
@@ -316,8 +317,9 @@ const Tickets: React.FC = () => {
           setEditForm((prev) => ({ ...prev, status: persistedTicket.status }))
         }
       }
-    } catch {
-      // silent fail to avoid noisy UX
+    } catch (err: any) {
+      const data = err.response?.data
+      setEditError(data?.detail || data?.message || data?.status?.[0] || 'Failed to resolve ticket')
     } finally {
       setCompletingId(null)
     }
@@ -525,7 +527,7 @@ const Tickets: React.FC = () => {
                   disabled={completingId === selectedTicket.id || savingTicket}
                 >
                   <CheckCircle2 size={14} strokeWidth={1.75} />
-                  {completingId === selectedTicket.id ? 'Closing...' : 'Mark Closed'}
+                  {completingId === selectedTicket.id ? 'Resolving...' : 'Resolve'}
                 </button>
                 <button type="button" className="btn-cancel" onClick={() => setSelectedTicket(null)} disabled={savingTicket}>
                   Cancel
