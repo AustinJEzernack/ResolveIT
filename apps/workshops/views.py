@@ -1,6 +1,7 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.core.cache import cache
 from django.http import Http404
 from django.utils.text import slugify
 from uuid import UUID, uuid4
@@ -220,6 +221,23 @@ class JoinWorkshopView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+# ─────────────────────────────────────────────
+# Presence view
+# ─────────────────────────────────────────────
+
+class WorkshopPresenceView(APIView):
+    """GET /api/workshops/presence/ — count of online users in the caller's workshop."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        workshop_id = request.user.workshop_id
+        if not workshop_id:
+            return Response({"online_count": 0})
+        presence: set = cache.get(f"presence_{workshop_id}") or set()
+        return Response({"online_count": len(presence)})
 
 
 # ─────────────────────────────────────────────

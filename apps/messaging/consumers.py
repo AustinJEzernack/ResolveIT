@@ -21,7 +21,8 @@ from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
-_VOICE_ROOM_TTL = 3600  # seconds; refreshed on every write
+_VOICE_ROOM_TTL = 3600   # seconds; refreshed on every write
+_PRESENCE_TTL   = 86400  # 24 hours
 
 
 class MainConsumer(AsyncJsonWebsocketConsumer):
@@ -49,11 +50,39 @@ class MainConsumer(AsyncJsonWebsocketConsumer):
         await self.channel_layer.group_add(f"workshop_{self.workshop_id}", self.channel_name)
 
         await self.accept()
+
+        # Presence: register online and broadcast to workshop
+        await self._presence_add(str(user.id))
+        await self.channel_layer.group_send(
+            f"workshop_{self.workshop_id}",
+            {
+                "type": "user.presence",
+                "data": {
+                    "user_id": str(user.id),
+                    "full_name": user.get_full_name() or user.email,
+                    "action": "online",
+                },
+            },
+        )
         logger.debug("WS connected: %s", user.id)
 
     async def disconnect(self, close_code):
         if not hasattr(self, "user"):
             return
+
+        # Presence: broadcast offline before leaving the group so others receive it
+        await self._presence_remove(str(self.user.id))
+        await self.channel_layer.group_send(
+            f"workshop_{self.workshop_id}",
+            {
+                "type": "user.presence",
+                "data": {
+                    "user_id": str(self.user.id),
+                    "full_name": self.user.get_full_name() or self.user.email,
+                    "action": "offline",
+                },
+            },
+        )
 
         await self.channel_layer.group_discard(f"user_{self.user.id}", self.channel_name)
         await self.channel_layer.group_discard(
@@ -219,6 +248,23 @@ class MainConsumer(AsyncJsonWebsocketConsumer):
         )
 
     # ─────────────────────────────────────────────
+    # Connection presence (Redis-backed, shared across workers)
+    # ─────────────────────────────────────────────
+
+    def _presence_key(self) -> str:
+        return f"presence_{self.workshop_id}"
+
+    async def _presence_add(self, user_id: str) -> None:
+        presence: set = await sync_to_async(cache.get)(self._presence_key()) or set()
+        presence.add(user_id)
+        await sync_to_async(cache.set)(self._presence_key(), presence, _PRESENCE_TTL)
+
+    async def _presence_remove(self, user_id: str) -> None:
+        presence: set = await sync_to_async(cache.get)(self._presence_key()) or set()
+        presence.discard(user_id)
+        await sync_to_async(cache.set)(self._presence_key(), presence, _PRESENCE_TTL)
+
+    # ─────────────────────────────────────────────
     # Workshop voice presence (Redis-backed, shared across workers)
     # ─────────────────────────────────────────────
 
@@ -331,6 +377,10 @@ class MainConsumer(AsyncJsonWebsocketConsumer):
     async def ticket_activity(self, event: dict):
         """Relay ticket activity events (assigned, etc.) to all workshop clients."""
         await self.send_json({"type": "ticket.activity", "data": event["data"]})
+
+    async def user_presence(self, event: dict):
+        """Relay connection presence events (online/offline) to all workshop clients."""
+        await self.send_json({"type": "user.presence", "data": event["data"]})
 
     # ─────────────────────────────────────────────
     # DB helpers

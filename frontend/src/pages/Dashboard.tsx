@@ -56,6 +56,7 @@ const Dashboard: React.FC = () => {
   const [joiningWorkshop, setJoiningWorkshop] = useState(false)
   const [joinWorkshopError, setJoinWorkshopError] = useState('')
   const [joinWorkshopSuccess, setJoinWorkshopSuccess] = useState('')
+  const [onlineCount, setOnlineCount] = useState(0)
 
   const refreshWorkshopList = async () => {
     try {
@@ -104,6 +105,14 @@ const Dashboard: React.FC = () => {
           setTickets([])
           setTicketsLoading(false)
         })
+    }
+  }, [user])
+
+  useEffect(() => {
+    if (user) {
+      apiClient.get('/workshops/presence/')
+        .then((res) => setOnlineCount(res.data.online_count ?? 0))
+        .catch(() => {})
     }
   }, [user])
 
@@ -184,6 +193,11 @@ const Dashboard: React.FC = () => {
           'info',
         )
         setNotifications([...notificationService.getNotifications()])
+      }
+      if (event.type === 'user.presence') {
+        const action = event.data?.action
+        if (action === 'online')  setOnlineCount(c => c + 1)
+        else if (action === 'offline') setOnlineCount(c => Math.max(0, c - 1))
       }
     })
     return () => ws.close()
@@ -461,8 +475,10 @@ const Dashboard: React.FC = () => {
                   <Users size={13} />
                   Online Now
                 </div>
-                <div className="stat-value">0</div>
-                <div className="stat-delta neutral">— no data</div>
+                <div className="stat-value">{onlineCount}</div>
+                <div className={`stat-delta ${onlineCount > 0 ? 'down' : 'neutral'}`}>
+                  {onlineCount > 0 ? `↓ ${onlineCount} active` : '— no one online'}
+                </div>
               </div>
             </div>
 
