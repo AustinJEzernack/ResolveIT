@@ -316,14 +316,19 @@ const Dashboard: React.FC = () => {
 
         {/* Main Content */}
         <main className="dashboard-main">
-          <div className="welcome-section">
-            <h1>Welcome, {user?.first_name}!</h1>
-            <p>You are successfully logged in to ResolveIT</p>
-          </div>
+          {activeTab === 'overview' && (
+            <>
+              <div className="welcome-section">
+                <h1>Welcome, {user?.first_name}!</h1>
+                <p>You are successfully logged in to ResolveIT</p>
+              </div>
 
-          <div className="dashboard-grid">
-          </div>
+              <div className="dashboard-grid">
+              </div>
+            </>
+          )}
 
+          {(activeTab === 'overview' || activeTab === 'workshops') && (
           <section className="workshops-section">
             <div className="workshops-header">
               <h2>Your Workshops</h2>
@@ -367,7 +372,9 @@ const Dashboard: React.FC = () => {
               </div>
             )}
           </section>
+          )}
 
+          {activeTab === 'tickets' && (
           <section className="tickets-section">
             <h2>Your Tickets</h2>
             {ticketsLoading ? (
@@ -395,6 +402,13 @@ const Dashboard: React.FC = () => {
               </div>
             )}
           </section>
+          )}
+
+          {activeTab === 'reports' && (
+            <div className="reports-placeholder">
+              <p>Reports coming soon</p>
+            </div>
+          )}
 
           {selectedTicket && (
             <div className="modal-overlay" onClick={() => setSelectedTicket(null)}>
