@@ -168,13 +168,9 @@ class TicketDetailView(generics.RetrieveUpdateDestroyAPIView):
         ticket = self.get_object()
         user = request.user
 
-        if (
-            user.role != "OWNER"
-            and ticket.assignee_id != user.id
-            and ticket.requestor_id != user.id
-        ):
+        if user.role != "OWNER" and ticket.requestor_id != user.id:
             return Response(
-                {"status": "error", "message": "You do not have permission to complete this ticket"},
+                {"status": "error", "message": "You do not have permission to delete this ticket"},
                 status=status.HTTP_403_FORBIDDEN,
             )
 

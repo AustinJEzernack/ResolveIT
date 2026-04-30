@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, AtSign, Bell, CheckCircle2, Headphones, Mic, MicOff, MonitorUp, Paperclip, PhoneOff, Phone, Plus, Send, Settings, Smile, Ticket, UserPlus, Users, Volume2, VolumeX } from 'lucide-react'
+import { ArrowLeft, AtSign, Bell, CheckCircle2, Headphones, Mic, MicOff, MonitorUp, Paperclip, PhoneOff, Phone, Plus, Send, Settings, Smile, Ticket, Trash2, UserPlus, Users, Volume2, VolumeX } from 'lucide-react'
 import CallUI from '../components/CallUI'
 import CreateWorkshopModal from '../components/CreateWorkshopModal'
 import { useWebRTC, type CallSignalData } from '../hooks/useWebRTC'
@@ -105,6 +105,7 @@ const Workshop: React.FC = () => {
   })
   const [savingTicket, setSavingTicket] = useState(false)
   const [resolvingId, setResolvingId] = useState<string | null>(null)
+  const [deletingTicketId, setDeletingTicketId] = useState<string | null>(null)
   const [editTicketError, setEditTicketError] = useState('')
   const [editTicketForm, setEditTicketForm] = useState({
     title: '',
@@ -566,6 +567,19 @@ const Workshop: React.FC = () => {
     }
   }
 
+  const handleDeleteTicket = async (ticketId: string) => {
+    if (!window.confirm('Delete this ticket?')) return
+    setDeletingTicketId(ticketId)
+    try {
+      await apiClient.delete(`/tickets/${ticketId}/`)
+      setTickets((prev) => prev.filter((t) => t.id !== ticketId))
+    } catch {
+      // silent
+    } finally {
+      setDeletingTicketId(null)
+    }
+  }
+
   const handleSaveTicket = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!selectedTicket || savingTicket) return
@@ -867,6 +881,16 @@ const Workshop: React.FC = () => {
                             <span className={`ticket-priority ${priorityClass}`}>
                               {priorityClass}
                             </span>
+                          </button>
+                          <button
+                            type="button"
+                            className="ticket-delete-btn"
+                            onClick={() => void handleDeleteTicket(ticket.id)}
+                            disabled={deletingTicketId === ticket.id}
+                            title="Delete ticket"
+                            aria-label="Delete ticket"
+                          >
+                            <Trash2 size={14} strokeWidth={1.75} />
                           </button>
                         </div>
                       )
