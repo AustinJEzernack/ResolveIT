@@ -3,12 +3,13 @@ import { useNavigate, Link } from 'react-router-dom'
 import {
   X, MessageSquare, Settings,
   AlertCircle, Clock, CheckCircle2, Users, Search,
-  LayoutDashboard, Ticket as TicketIcon, BarChart2,
+  LayoutDashboard, Ticket as TicketIcon, Trophy,
 } from 'lucide-react'
 import apiClient from '@services/api'
 import { clearAuthTokens, getAccessToken, getRefreshToken, type AuthUser } from '@services/auth'
 import notificationService, { Notification } from '@services/notificationService'
 import { connectWebSocket } from '@services/messagingService'
+import Leaderboard from './Leaderboard'
 import '../styles/Dashboard.css'
 
 function unwrapListPayload<T>(payload: unknown): T[] {
@@ -220,10 +221,10 @@ const Dashboard: React.FC = () => {
   }, [showWorkshopModal])
 
   const TABS = [
-    { id: 'overview',  label: 'Overview',  Icon: LayoutDashboard },
-    { id: 'tickets',   label: 'Tickets',   Icon: TicketIcon },
-    { id: 'workshops', label: 'Workshops', Icon: Users },
-    { id: 'reports',   label: 'Reports',   Icon: BarChart2 },
+    { id: 'overview',     label: 'Overview',     Icon: LayoutDashboard },
+    { id: 'tickets',      label: 'Tickets',      Icon: TicketIcon },
+    { id: 'workshops',    label: 'Workshops',    Icon: Users },
+    { id: 'leaderboard',  label: 'Leaderboard',  Icon: Trophy },
   ]
   const [activeTab, setActiveTab] = useState('overview')
 
@@ -493,12 +494,8 @@ const Dashboard: React.FC = () => {
         {/* Workshops */}
         {activeTab === 'workshops' && workshopsSection}
 
-        {/* Reports */}
-        {activeTab === 'reports' && (
-          <div className="reports-placeholder">
-            <p>Coming soon</p>
-          </div>
-        )}
+        {/* Leaderboard */}
+        {activeTab === 'leaderboard' && <Leaderboard user={user} />}
 
         {/* ── Ticket Detail Modal ── */}
         {selectedTicket && (

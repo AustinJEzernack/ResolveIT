@@ -224,6 +224,82 @@ class JoinWorkshopView(APIView):
 
 
 # ─────────────────────────────────────────────
+# Leaderboard view
+# ─────────────────────────────────────────────
+
+class WorkshopLeaderboardView(APIView):
+    """GET /api/workshops/leaderboard/ — weekly XP rankings for the current workshop."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from datetime import datetime, timedelta, timezone as tz
+        from apps.tickets.models import Ticket
+
+        user = request.user
+        if not user.workshop_id:
+            return Response({"error": "Not in a workshop"}, status=status.HTTP_400_BAD_REQUEST)
+
+        now = datetime.now(tz.utc)
+        # Monday 00:00 UTC of the current week
+        week_start = (now - timedelta(days=now.weekday())).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+
+        members = User.objects.filter(workshop_id=user.workshop_id, is_active=True)
+
+        entries = []
+        for member in members:
+            resolved = Ticket.objects.filter(
+                workshop_id=user.workshop_id,
+                assignee=member,
+                status__in=["RESOLVED", "CLOSED"],
+                updated_at__gte=week_start,
+            ).count()
+            # Tickets assigned to them this week that are not yet resolved
+            assigned = Ticket.objects.filter(
+                workshop_id=user.workshop_id,
+                assignee=member,
+                created_at__gte=week_start,
+            ).exclude(status__in=["RESOLVED", "CLOSED"]).count()
+            xp = resolved * 100 + assigned * 10
+            entries.append({
+                "user_id": str(member.id),
+                "full_name": member.get_full_name() or member.email,
+                "xp": xp,
+                "tickets_resolved": resolved,
+                "level": xp // 500 + 1,
+            })
+
+        # Stable sort: XP desc, then name asc
+        entries.sort(key=lambda e: (-e["xp"], e["full_name"]))
+        for i, entry in enumerate(entries):
+            entry["rank"] = i + 1
+
+        elapsed_days = max((now - week_start).total_seconds() / 86400, 0.01)
+        total_resolved = sum(e["tickets_resolved"] for e in entries)
+        avg_per_day = round(total_resolved / elapsed_days, 1)
+
+        current_user_rank = next(
+            (e["rank"] for e in entries if e["user_id"] == str(user.id)),
+            len(entries),
+        )
+        leader = entries[0] if entries else None
+
+        return Response({
+            "entries": entries,
+            "summary": {
+                "leader_name": leader["full_name"] if leader else "—",
+                "total_resolved": total_resolved,
+                "avg_per_day": avg_per_day,
+                "current_user_rank": current_user_rank,
+                "total_members": len(entries),
+            },
+            "week_start": week_start.isoformat(),
+        })
+
+
+# ─────────────────────────────────────────────
 # Presence view
 # ─────────────────────────────────────────────
 

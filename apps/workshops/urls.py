@@ -12,6 +12,7 @@ urlpatterns = [
         views.AvailableUsersView.as_view(),
         name="workshop-available-members",
     ),
+    path("leaderboard/", views.WorkshopLeaderboardView.as_view(), name="workshop-leaderboard"),
     path("presence/", views.WorkshopPresenceView.as_view(), name="workshop-presence"),
     path("me/members/", views.WorkshopMembersView.as_view(), name="workshop-members"),
     path(
